@@ -7,6 +7,8 @@ class LoginRequest(BaseModel):
 class TopicCreate(BaseModel):
     title: str
     description: str = ""
+    keywords: str = ""  # Added this
+    teacher_id: int
 
 class EssaySubmission(BaseModel):
     student_id: int

@@ -1,4 +1,4 @@
-% FinalScore = (Vocab*0.3) + (Grammar*0.3) + (Content*0.4)
-calculate_final_grade(V, G, C, FinalScore) :-
-    RawScore is (V * 0.3) + (G * 0.3) + (C * 0.4),
+% FinalScore = (Structure*0.3) + (Vocab*0.3) + (Relevance*0.4)
+calculate_final_grade(S, V, R, FinalScore) :-
+    RawScore is (S * 0.3) + (V * 0.3) + (R * 0.4),
     FinalScore is round(RawScore).

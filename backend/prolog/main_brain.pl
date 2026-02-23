@@ -1,18 +1,18 @@
-:- [content_rules, grammar_rules, grading_logic, structure_rules].
+% Load utilities first, then the rules
+:- [utils].
+:- [content_rules].
+:- [grammar_rules].
+:- [grading_logic].
+:- [structure_rules].
 
-% Main entry point
 evaluate_essay(TextList, TopicKeywords, FinalScore, Feedback) :-
-    % 1. Check Structure (Intro, Body, Conclusion)
-    check_structure(TextList, StructScore, StructFeedback),
-    
-    % 2. Check Vocabulary & Transitions
-    check_vocabulary(TextList, VocabScore, VocabFeedback),
-    
-    % 3. Check Topic Relevance (Do keywords exist?)
-    check_relevance(TextList, TopicKeywords, RelScore, RelFeedback),
-    
-    % 4. Final Calculation (Weighted)
-    calculate_final_grade(StructScore, VocabScore, RelScore, FinalScore),
-    
-    % 5. Combine all feedback
-    atomic_list_concat([StructFeedback, " ", VocabFeedback, " ", RelFeedback], Feedback).
+    % 1. Call structure check
+    check_structure(TextList, S1, F1),
+    % 2. Call vocabulary check
+    check_vocabulary(TextList, S2, F2),
+    % 3. Call relevance check
+    check_relevance(TextList, TopicKeywords, S3, F3),
+    % 4. Weighted Grade Calculation
+    calculate_final_grade(S1, S2, S3, FinalScore),
+    % Combine all feedback strings
+    atomic_list_concat([F1, " ", F2, " ", F3], Feedback).
