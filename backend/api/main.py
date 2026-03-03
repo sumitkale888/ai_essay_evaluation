@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .models import LoginRequest, TopicCreate, EssaySubmission
+# Ensure RegisterRequest is in this list!
+from .models import LoginRequest, TopicCreate, EssaySubmission, RegisterRequest
 from .database import get_db_connection
 from pyswip import Prolog
 import os
@@ -22,6 +23,8 @@ prolog = Prolog()
 # Get absolute path to your main_brain.pl
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 prolog_path = os.path.join(BASE_DIR, "prolog", "main_brain.pl").replace("\\", "/")
+print("❤️😊")
+print(prolog)
 
 try:
     prolog.consult(prolog_path)
@@ -44,6 +47,52 @@ def login(request: LoginRequest):
     finally:
         db.close()
 
+# --- AUTHENTICATION: REGISTER ---
+@app.post("/register")
+def register(request: RegisterRequest):
+    db = get_db_connection()
+    cursor = db.cursor()
+    try:
+        # Check if user already exists
+        cursor.execute("SELECT user_id FROM Users WHERE email = %s", (request.email,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+        # Insert new user
+        query = "INSERT INTO Users (name, email, password, role) VALUES (%s, %s, %s, %s)"
+        values = (request.name, request.email, request.password, request.role.lower())
+        cursor.execute(query, values)
+        db.commit()
+        return {"message": "User created successfully", "role": request.role.lower()}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+# --- AUTHENTICATION: LOGIN ---
+@app.post("/login")
+def login(request: LoginRequest):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT user_id, role, name FROM Users WHERE email = %s AND password = %s", 
+            (request.email, request.password)
+        )
+        user = cursor.fetchone()
+        if user:
+            # The 'role' returned here is used by React to navigate to /student-dashboard or /teacher-dashboard
+            return {
+                "message": "Login successful", 
+                "user_id": user["user_id"], 
+                "role": user["role"], 
+                "name": user["name"]
+            }
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    finally:
+        db.close()
+
 # --- TEACHER ROUTE: Add Essay Topic ---
 @app.post("/add-topic")
 def add_topic(topic: TopicCreate):
@@ -58,6 +107,43 @@ def add_topic(topic: TopicCreate):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+# --- TEACHER: Delete Topic ---
+@app.delete("/delete-topic/{topic_id}")
+def delete_topic(topic_id: int):
+    db = get_db_connection()
+    cursor = db.cursor()
+    try:
+        # Note: This will only work if your DB has ON DELETE CASCADE 
+        # or if you delete grades/essays first.
+        cursor.execute("DELETE FROM Topics WHERE topic_id = %s", (topic_id,))
+        db.commit()
+        return {"message": "Topic deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+# --- TEACHER: Get Completion Status ---
+@app.get("/topic-submissions/{topic_id}")
+def get_topic_submissions(topic_id: int):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        # Removed e.submission_date from the SELECT list
+        query = """
+            SELECT u.name, g.final_score 
+            FROM Users u
+            JOIN Essays e ON u.user_id = e.student_id
+            JOIN Evaluations ev ON e.essay_id = ev.essay_id
+            JOIN Grades g ON ev.evaluation_id = g.evaluation_id
+            WHERE e.topic_id = %s
+        """
+        cursor.execute(query, (topic_id,))
+        return cursor.fetchall()
     finally:
         db.close()
 
@@ -144,13 +230,45 @@ def submit_essay(submission: EssaySubmission):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
-
-# --- UTILITY: Get Topics for Dropdown ---
-@app.get("/get-topics")
-def get_topics():
+# --- STUDENT: Get personal submission history ---
+@app.get("/student-history/{student_id}")
+def get_student_history(student_id: int):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
+        query = """
+            SELECT t.title, g.final_score, f.feedback_text, e.submission_date
+            FROM Essays e
+            JOIN Topics t ON e.topic_id = t.topic_id
+            JOIN Evaluations ev ON e.essay_id = ev.essay_id
+            JOIN Grades g ON ev.evaluation_id = g.evaluation_id
+            JOIN Feedback f ON ev.evaluation_id = f.evaluation_id
+            WHERE e.student_id = %s
+            ORDER BY e.submission_date DESC
+        """
+        cursor.execute(query, (student_id,))
+        return cursor.fetchall()
+    finally:
+        db.close()
+
+# --- UTILITY: Get Topics for Dropdown ---
+@app.get("/get-topics-student")
+def get_topics_student():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        # We EXCLUDE 'keywords' from this query
+        cursor.execute("SELECT topic_id, title, description FROM Topics")
+        return cursor.fetchall()
+    finally:
+        db.close()
+
+@app.get("/get-topics-teacher")
+def get_topics_teacher():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        # Teacher needs keywords to manage them
         cursor.execute("SELECT topic_id, title, description, keywords FROM Topics")
         return cursor.fetchall()
     finally:

@@ -4,10 +4,16 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str  # Must be 'student' or 'teacher'
+
 class TopicCreate(BaseModel):
     title: str
     description: str = ""
-    keywords: str = ""  # Added this
+    keywords: str = ""
     teacher_id: int
 
 class EssaySubmission(BaseModel):

@@ -1,9 +1,10 @@
-check_relevance(TextList, Keywords, 10, "Highly relevant to the topic.") :-
+check_relevance(TextList, Keywords, Score, Feedback) :-
     intersection(TextList, Keywords, Matches),
-    length(Matches, L), L >= 3, !.
-
-check_relevance(TextList, Keywords, 6, "Moderately relevant content.") :-
-    intersection(TextList, Keywords, Matches),
-    length(Matches, L), L >= 1, !.
-
-check_relevance(_, _, 2, "Warning: Content seems off-topic.").
+    length(Matches, L),
+    length(TextList, TotalWords),
+    ( (L >= 3, TotalWords > 100) -> 
+        (Score = 10, Feedback = "Highly relevant and detailed.")
+    ; (L >= 1, TotalWords > 50) -> 
+        (Score = 6, Feedback = "Relevant but lacks depth.")
+    ;   (Score = 2, Feedback = "Content is too short or off-topic.")
+    ).
