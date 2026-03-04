@@ -1,15 +1,25 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-# Ensure RegisterRequest is in this list!
 from .models import LoginRequest, TopicCreate, EssaySubmission, RegisterRequest
 from .database import get_db_connection
 from pyswip import Prolog
 import os
 import re
+from passlib.context import CryptContext
+
+# --- SECURITY SETUP: ARGON2 ---
+# Argon2 is the winner of the Password Hashing Competition and 
+# usually installs on Windows without needing Visual Studio.
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
 app = FastAPI()
 
-# Enable CORS for Frontend Communication
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,11 +30,8 @@ app.add_middleware(
 
 # --- PROLOG INITIALIZATION ---
 prolog = Prolog()
-# Get absolute path to your main_brain.pl
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 prolog_path = os.path.join(BASE_DIR, "prolog", "main_brain.pl").replace("\\", "/")
-print("❤️😊")
-print(prolog)
 
 try:
     prolog.consult(prolog_path)
@@ -32,35 +39,22 @@ try:
 except Exception as e:
     print(f"Error consulting Prolog: {e}")
 
-# --- AUTHENTICATION ---
-@app.post("/login")
-def login(request: LoginRequest):
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
-    try:
-        cursor.execute("SELECT user_id, role, name FROM Users WHERE email = %s AND password = %s", 
-                       (request.email, request.password))
-        user = cursor.fetchone()
-        if user:
-            return {"message": "Login successful", "user_id": user["user_id"], "role": user["role"], "name": user["name"]}
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    finally:
-        db.close()
-
 # --- AUTHENTICATION: REGISTER ---
 @app.post("/register")
 def register(request: RegisterRequest):
     db = get_db_connection()
     cursor = db.cursor()
     try:
-        # Check if user already exists
         cursor.execute("SELECT user_id FROM Users WHERE email = %s", (request.email,))
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Email already registered")
 
-        # Insert new user
+        # Hash with Argon2
+        hashed_password = get_password_hash(request.password)
+        
         query = "INSERT INTO Users (name, email, password, role) VALUES (%s, %s, %s, %s)"
-        values = (request.name, request.email, request.password, request.role.lower())
+        values = (request.name, request.email, hashed_password, request.role.lower())
+        
         cursor.execute(query, values)
         db.commit()
         return {"message": "User created successfully", "role": request.role.lower()}
@@ -76,24 +70,24 @@ def login(request: LoginRequest):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        cursor.execute(
-            "SELECT user_id, role, name FROM Users WHERE email = %s AND password = %s", 
-            (request.email, request.password)
-        )
+        cursor.execute("SELECT user_id, role, name, password FROM Users WHERE email = %s", (request.email,))
         user = cursor.fetchone()
-        if user:
-            # The 'role' returned here is used by React to navigate to /student-dashboard or /teacher-dashboard
+
+        if user and verify_password(request.password, user["password"]):
             return {
                 "message": "Login successful", 
                 "user_id": user["user_id"], 
                 "role": user["role"], 
                 "name": user["name"]
             }
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     finally:
         db.close()
 
-# --- TEACHER ROUTE: Add Essay Topic ---
+# ... (Keep the rest of your teacher and student routes as they were)
+
+# --- TEACHER ROUTES ---
 @app.post("/add-topic")
 def add_topic(topic: TopicCreate):
     db = get_db_connection()
@@ -104,36 +98,24 @@ def add_topic(topic: TopicCreate):
         cursor.execute(query, values)
         db.commit()
         return {"message": "Topic added successfully", "topic_id": cursor.lastrowid}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
 
-# --- TEACHER: Delete Topic ---
-@app.delete("/delete-topic/{topic_id}")
-def delete_topic(topic_id: int):
+@app.get("/get-topics-teacher")
+def get_topics_teacher():
     db = get_db_connection()
-    cursor = db.cursor()
+    cursor = db.cursor(dictionary=True)
     try:
-        # Note: This will only work if your DB has ON DELETE CASCADE 
-        # or if you delete grades/essays first.
-        cursor.execute("DELETE FROM Topics WHERE topic_id = %s", (topic_id,))
-        db.commit()
-        return {"message": "Topic deleted successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        cursor.execute("SELECT topic_id, title, description, keywords FROM Topics")
+        return cursor.fetchall()
     finally:
         db.close()
 
-# --- TEACHER: Get Completion Status ---
 @app.get("/topic-submissions/{topic_id}")
 def get_topic_submissions(topic_id: int):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        # Removed e.submission_date from the SELECT list
         query = """
             SELECT u.name, g.final_score 
             FROM Users u
@@ -147,90 +129,17 @@ def get_topic_submissions(topic_id: int):
     finally:
         db.close()
 
-# --- STUDENT ROUTE: Submit and Evaluate Essay ---
-@app.post("/submit-essay")
-def submit_essay(submission: EssaySubmission):
+# --- STUDENT ROUTES ---
+@app.get("/get-topics-student")
+def get_topics_student():
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
-    
     try:
-        # 1. Fetch Topic Keywords
-        cursor.execute("SELECT keywords FROM Topics WHERE topic_id = %s", (submission.topic_id,))
-        topic_row = cursor.fetchone()
-
-        if not topic_row:
-            raise HTTPException(status_code=404, detail="Topic not found")
-
-        # Handle NULL or empty keywords safely
-        raw_keywords = topic_row.get('keywords') or "essay,writing,analysis"
-        kw_list = [f"'{k.strip().lower()}'" for k in raw_keywords.split(',') if k.strip()]
-        prolog_keywords = "[" + ",".join(kw_list) + "]"
-        
-        # 2. Sanitize and Process Essay Text for Prolog
-        # Remove special characters and specifically single quotes which break Prolog syntax
-        clean_text = re.sub(r"[^a-zA-Z0-9\s]", "", submission.essay_text).lower()
-        words = clean_text.split()
-        word_count = len(words)
-        
-        if word_count == 0:
-            return {"status": "error", "message": "Essay is empty"}
-
-        prolog_text_list = "[" + ",".join([f"'{w}'" for w in words]) + "]"
-        
-        # 3. Query Prolog
-        # evaluate_essay(TextList, Keywords, Score, Feedback)
-        query_str = f"evaluate_essay({prolog_text_list}, {prolog_keywords}, Score, Feedback)"
-        result = list(prolog.query(query_str))
-        
-        if result:
-            score = result[0]["Score"]
-            feedback_raw = result[0]["Feedback"]
-            
-            # Handle Prolog's varied return types (bytes or lists of codes)
-            if isinstance(feedback_raw, bytes):
-                feedback = feedback_raw.decode("utf-8")
-            elif isinstance(feedback_raw, list):
-                # Convert list of char codes to string
-                feedback = "".join([chr(c) for c in feedback_raw])
-            else:
-                feedback = str(feedback_raw)
-        else:
-            score = 2
-            feedback = "The essay does not follow the required structural patterns (Intro/Conclusion)."
-
-        # 4. Save Everything to DB
-        # Save the actual Essay
-        cursor.execute(
-            "INSERT INTO Essays (student_id, topic_id, essay_text) VALUES (%s, %s, %s)",
-            (submission.student_id, submission.topic_id, submission.essay_text)
-        )
-        essay_id = cursor.lastrowid
-        
-        # Create Evaluation Entry
-        cursor.execute("INSERT INTO Evaluations (essay_id) VALUES (%s)", (essay_id,))
-        eval_id = cursor.lastrowid
-        
-        # Store Grade and Feedback
-        cursor.execute("INSERT INTO Grades (evaluation_id, final_score) VALUES (%s, %s)", (eval_id, score))
-        cursor.execute("INSERT INTO Feedback (evaluation_id, feedback_text) VALUES (%s, %s)", (eval_id, feedback))
-        
-        db.commit()
-        
-        return {
-            "status": "success",
-            "score": score,
-            "feedback": feedback,
-            "word_count": word_count,
-            "essay_id": essay_id
-        }
-
-    except Exception as e:
-        db.rollback()
-        print(f"Error during submission: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        cursor.execute("SELECT topic_id, title, description FROM Topics")
+        return cursor.fetchall()
     finally:
         db.close()
-# --- STUDENT: Get personal submission history ---
+
 @app.get("/student-history/{student_id}")
 def get_student_history(student_id: int):
     db = get_db_connection()
@@ -251,25 +160,49 @@ def get_student_history(student_id: int):
     finally:
         db.close()
 
-# --- UTILITY: Get Topics for Dropdown ---
-@app.get("/get-topics-student")
-def get_topics_student():
+@app.post("/submit-essay")
+def submit_essay(submission: EssaySubmission):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        # We EXCLUDE 'keywords' from this query
-        cursor.execute("SELECT topic_id, title, description FROM Topics")
-        return cursor.fetchall()
-    finally:
-        db.close()
+        cursor.execute("SELECT keywords FROM Topics WHERE topic_id = %s", (submission.topic_id,))
+        topic_row = cursor.fetchone()
+        if not topic_row:
+            raise HTTPException(status_code=404, detail="Topic not found")
 
-@app.get("/get-topics-teacher")
-def get_topics_teacher():
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
-    try:
-        # Teacher needs keywords to manage them
-        cursor.execute("SELECT topic_id, title, description, keywords FROM Topics")
-        return cursor.fetchall()
+        raw_keywords = topic_row.get('keywords') or "essay,writing,analysis"
+        kw_list = [f"'{k.strip().lower()}'" for k in raw_keywords.split(',') if k.strip()]
+        prolog_keywords = "[" + ",".join(kw_list) + "]"
+        
+        clean_text = re.sub(r"[^a-zA-Z0-9\s]", "", submission.essay_text).lower()
+        words = clean_text.split()
+        
+        if len(words) == 0:
+            return {"status": "error", "message": "Essay is empty"}
+
+        prolog_text_list = "[" + ",".join([f"'{w}'" for w in words]) + "]"
+        query_str = f"evaluate_essay({prolog_text_list}, {prolog_keywords}, Score, Feedback)"
+        result = list(prolog.query(query_str))
+        
+        if result:
+            score = result[0]["Score"]
+            feedback_raw = result[0]["Feedback"]
+            feedback = feedback_raw.decode("utf-8") if isinstance(feedback_raw, bytes) else (
+                "".join([chr(c) for c in feedback_raw]) if isinstance(feedback_raw, list) else str(feedback_raw)
+            )
+        else:
+            score = 2
+            feedback = "The essay does not follow the required structural patterns (Intro/Conclusion)."
+
+        cursor.execute("INSERT INTO Essays (student_id, topic_id, essay_text) VALUES (%s, %s, %s)",
+                       (submission.student_id, submission.topic_id, submission.essay_text))
+        essay_id = cursor.lastrowid
+        cursor.execute("INSERT INTO Evaluations (essay_id) VALUES (%s)", (essay_id,))
+        eval_id = cursor.lastrowid
+        cursor.execute("INSERT INTO Grades (evaluation_id, final_score) VALUES (%s, %s)", (eval_id, score))
+        cursor.execute("INSERT INTO Feedback (evaluation_id, feedback_text) VALUES (%s, %s)", (eval_id, feedback))
+        db.commit()
+        
+        return {"status": "success", "score": score, "feedback": feedback, "word_count": len(words), "essay_id": essay_id}
     finally:
         db.close()
