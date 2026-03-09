@@ -8,16 +8,24 @@ const StudentDashboard = () => {
     const user = JSON.parse(localStorage.getItem('user'));
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const availableTopics = await essayService.getTopicsForStudent();
-                const studentHistory = await essayService.getStudentHistory(user.user_id);
-                setTopics(availableTopics);
-                setHistory(studentHistory);
-            } catch (err) {
-                console.error("Error fetching dashboard data");
-            }
-        };
+        // StudentDashboard.jsx
+const fetchData = async () => {
+    try {
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        // ID ko saaf karo! parseInt() use karo taaki sirf "4" jaye, "4:1" nahi.
+        const cleanId = parseInt(storedUser.user_id); 
+        
+        console.log("Fetching for ID:", cleanId); // Check karne ke liye
+
+        const availableTopics = await essayService.getTopicsForStudent();
+        const studentHistory = await essayService.getStudentHistory(cleanId); 
+        
+        setTopics(availableTopics);
+        setHistory(studentHistory);
+    } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+    }
+};
         fetchData();
     }, [user.user_id]);
 

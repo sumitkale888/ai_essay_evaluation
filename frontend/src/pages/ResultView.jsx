@@ -5,6 +5,7 @@ const ResultView = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { result } = location.state || {};
+    console.log("Evaluation Result Object:", result);
 
     if (!result) return <p className="text-center mt-10">No result found.</p>;
 
