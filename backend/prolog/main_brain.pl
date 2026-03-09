@@ -1,18 +1,26 @@
-% Load utilities first, then the rules
+% --- LOAD UTILITIES & RULES ---
+% Ensure these match your actual .pl filenames in the prolog/ folder
 :- [utils].
 :- [content_rules].
 :- [grammar_rules].
 :- [grading_logic].
 :- [structure_rules].
 
+% --- MAIN EVALUATION ENTRY POINT ---
 evaluate_essay(TextList, TopicKeywords, FinalScore, Feedback) :-
-    % 1. Call structure check
-    check_structure(TextList, S1, F1),
-    % 2. Call vocabulary check
-    check_vocabulary(TextList, S2, F2),
-    % 3. Call relevance check
-    check_relevance(TextList, TopicKeywords, S3, F3),
-    % 4. Weighted Grade Calculation
-    calculate_final_grade(S1, S2, S3, FinalScore),
-    % Combine all feedback strings
-    atomic_list_concat([F1, " ", F2, " ", F3], Feedback).
+    % 0. Gibberish Guard: If essay is extremely short, fail immediately
+    length(TextList, L),
+    ( L < 10 -> 
+        (FinalScore = 0, Feedback = "Content is too short to evaluate.")
+    ; (
+        % 1. Call structure check
+        check_structure(TextList, S1, F1),
+        % 2. Call vocabulary check
+        check_vocabulary(TextList, S2, F2),
+        % 3. Call relevance check
+        check_relevance(TextList, TopicKeywords, S3, F3),
+        % 4. Weighted Grade Calculation
+        calculate_final_grade(S1, S2, S3, FinalScore),
+        % Combine all feedback strings
+        atomic_list_concat([F1, " ", F2, " ", F3], Feedback)
+    )).

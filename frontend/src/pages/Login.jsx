@@ -9,20 +9,21 @@ const Login = () => {
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
-        e.preventDefault();
-        try {
-            const data = await authService.login(email, password);
-            localStorage.setItem('user', JSON.stringify(data));
-            
-            if (data.role === 'teacher') {
-                navigate('/teacher-dashboard');
-            } else {
-                navigate('/student-dashboard');
-            }
-        } catch (err) {
-            setError('Invalid email or password');
+    e.preventDefault();
+    try {
+        const data = await authService.login(email, password);
+        localStorage.setItem('user', JSON.stringify(data));
+
+        // Redirect based on role
+        if (data.role === 'teacher') {
+            navigate('/teacher/topics'); // Change from /teacher-dashboard to this
+        } else {
+            navigate('/student-dashboard');
         }
-    };
+    } catch (err) {
+        alert("Invalid Credentials");
+    }
+};
 
     return (
         <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-xl shadow-lg">

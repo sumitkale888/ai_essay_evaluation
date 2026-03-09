@@ -129,6 +129,30 @@ def get_topic_submissions(topic_id: int):
     finally:
         db.close()
 
+# --- TEACHER: Delete Topic ---
+@app.delete("/delete-topic/{topic_id}")
+def delete_topic(topic_id: int):
+    db = get_db_connection()
+    cursor = db.cursor()
+    try:
+        # Step 1: Delete from child tables first to avoid Foreign Key errors
+        # (This order is important: Feedback -> Grades -> Evaluations -> Essays -> Topics)
+        cursor.execute("DELETE f FROM Feedback f JOIN Evaluations ev ON f.evaluation_id = ev.evaluation_id JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
+        cursor.execute("DELETE g FROM Grades g JOIN Evaluations ev ON g.evaluation_id = ev.evaluation_id JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
+        cursor.execute("DELETE ev FROM Evaluations ev JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
+        cursor.execute("DELETE FROM Essays WHERE topic_id = %s", (topic_id,))
+        
+        # Step 2: Now delete the topic itself
+        cursor.execute("DELETE FROM Topics WHERE topic_id = %s", (topic_id,))
+        
+        db.commit()
+        return {"message": "Topic and all related data deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+        
 # --- STUDENT ROUTES ---
 @app.get("/get-topics-student")
 def get_topics_student():

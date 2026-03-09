@@ -14,3 +14,11 @@ has_intro_markers(List) :-
 has_conclusion_markers(List) :- 
     member(Word, List), 
     member(Word, [finally, conclusion, summary, overall, conclude]).
+
+has_intro_markers(List) :- 
+    member(Word, List), 
+    member(Word, [firstly, begin, introduction, nowadays, season, weather, climate, history, definition]).
+
+has_conclusion_markers(List) :- 
+    member(Word, List), 
+    member(Word, [finally, conclusion, overall, conclude, result, impact, significance]).
