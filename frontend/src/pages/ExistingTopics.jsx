@@ -14,7 +14,7 @@ const ExistingTopics = () => {
     useEffect(() => { fetchTopics(); }, []);
 
    const handleDelete = async (topicId) => {
-    // Force convert to Number to remove any hidden strings like ":1"
+   
     const cleanId = Number(topicId); 
 
     if (window.confirm("Delete this topic and all related grades?")) {

@@ -1,12 +1,12 @@
 % --- LOAD UTILITIES & RULES ---
-% Ensure these match your actual .pl filenames in the prolog/ folder
+
 :- [utils].
 :- [content_rules].
 :- [grammar_rules].
 :- [grading_logic].
 :- [structure_rules].
 
-% --- MAIN EVALUATION ENTRY POINT ---
+
 evaluate_essay(TextList, TopicKeywords, FinalScore, Feedback) :-
     % 0. Gibberish Guard: If essay is extremely short, fail immediately
     length(TextList, L),

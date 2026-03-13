@@ -5,7 +5,7 @@ const Navbar = () => {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user'));
 
-    // Fix: Dynamic home link based on role
+  
     const getHomeLink = () => {
         if (!user) return "/";
         return user.role === 'teacher' ? "/teacher/topics" : "/student-dashboard";
@@ -18,7 +18,7 @@ const Navbar = () => {
 
     return (
         <nav className="bg-white shadow-md p-4 flex justify-between items-center px-10">
-            {/* Logo now points to the correct dashboard */}
+           
             <Link to={getHomeLink()} className="text-xl font-bold text-blue-600">
                 AI Grader
             </Link>

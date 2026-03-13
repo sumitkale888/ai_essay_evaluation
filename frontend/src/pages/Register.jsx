@@ -7,7 +7,7 @@ const Register = () => {
         name: '',
         email: '',
         password: '',
-        role: 'student' // Default role
+        role: 'student'
     });
     const [error, setError] = useState('');
     const navigate = useNavigate();
@@ -21,7 +21,7 @@ const Register = () => {
         try {
             await authService.register(formData);
             alert("Registration Successful! Please Login.");
-            navigate('/'); // Redirect to login page
+            navigate('/'); 
         } catch (err) {
             setError(err.response?.data?.detail || "Registration failed. Try again.");
         }

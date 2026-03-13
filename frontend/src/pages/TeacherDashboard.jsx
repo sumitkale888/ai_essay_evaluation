@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { teacherService, essayService } from '../services/api';
 
 const TeacherDashboard = () => {
-    // State for Topic List
+    
     const [topics, setTopics] = useState([]);
     const [selectedSubmissions, setSelectedSubmissions] = useState(null);
     
-    // State for New Topic Form
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
     const [keywords, setKeywords] = useState('');
@@ -15,7 +14,7 @@ const TeacherDashboard = () => {
 
  const refreshTopics = async () => {
     try {
-        // Change this line to use the teacher-specific method
+      
         const data = await teacherService.getTopicsForTeacher(); 
         setTopics(data);
     } catch (err) {
@@ -36,7 +35,7 @@ const TeacherDashboard = () => {
             });
             alert("Topic Added Successfully!");
             setTitle(''); setDesc(''); setKeywords('');
-            refreshTopics(); // Refresh the list after adding
+            refreshTopics(); 
         } catch (err) {
             alert("Error adding topic.");
         }

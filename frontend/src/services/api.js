@@ -20,22 +20,22 @@ export const authService = {
     },
 };
 
-// src/services/api.js
+
 
 export const essayService = {
-    // This one is working in your logs because you likely added /student
+   
     getTopicsForStudent: async () => {
         const response = await api.get('/student/get-topics-student'); 
         return response.data;
     },
 
-    // FIX THIS: Add /student prefix here
+    
     getStudentHistory: async (studentId) => {
         const response = await api.get(`/student/student-history/${studentId}`);
         return response.data;
     },
 
-    // FIX THIS: Add /student prefix here too
+ 
     submitEssay: async (payload) => {
         const response = await api.post('/student/submit-essay', payload);
         return response.data;
@@ -43,7 +43,7 @@ export const essayService = {
 };
 
 export const teacherService = {
-    // FIXED: Added /teacher prefix to all teacher routes
+   
     getTopicsForTeacher: async () => {
         const response = await api.get('/teacher/get-topics-teacher');
         return response.data;

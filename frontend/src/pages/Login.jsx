@@ -14,9 +14,9 @@ const Login = () => {
         const data = await authService.login(email, password);
         localStorage.setItem('user', JSON.stringify(data));
 
-        // Redirect based on role
+       
         if (data.role === 'teacher') {
-            navigate('/teacher/topics'); // Change from /teacher-dashboard to this
+            navigate('/teacher/topics'); 
         } else {
             navigate('/student-dashboard');
         }
@@ -45,7 +45,7 @@ const Login = () => {
                 </button>
             </form>
             
-            {/* This is the part that was causing the error */}
+           
             <p className="text-center mt-6 text-gray-600">
                 Don't have an account? <Link to="/register" className="text-blue-600 font-bold hover:underline">Register</Link>
             </p>

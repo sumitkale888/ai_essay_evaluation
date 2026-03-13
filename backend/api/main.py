@@ -12,7 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include separate route files
+
 app.include_router(auth.router, tags=["Authentication"]) # No prefix for login/register usually
 app.include_router(teacher.router, prefix="/teacher", tags=["Teacher Actions"])
 

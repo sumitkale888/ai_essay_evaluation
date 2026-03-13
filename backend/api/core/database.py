@@ -2,7 +2,7 @@ import mysql.connector
 import os
 from dotenv import load_dotenv
 
-# Accurately locate the .env file one level up from the 'api' folder
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 

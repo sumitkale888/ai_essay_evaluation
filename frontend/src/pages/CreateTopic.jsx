@@ -19,7 +19,7 @@ const CreateTopic = () => {
                 teacher_id: user.user_id
             });
             alert("Topic Published!");
-            navigate('/teacher/topics'); // Send teacher to list after creating
+            navigate('/teacher/topics'); 
         } catch (err) {
             alert("Error adding topic.");
         }

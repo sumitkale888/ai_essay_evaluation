@@ -8,11 +8,11 @@ const StudentDashboard = () => {
     const user = JSON.parse(localStorage.getItem('user'));
 
     useEffect(() => {
-        // StudentDashboard.jsx
+        
 const fetchData = async () => {
     try {
         const storedUser = JSON.parse(localStorage.getItem('user'));
-        // ID ko saaf karo! parseInt() use karo taaki sirf "4" jaye, "4:1" nahi.
+      
         const cleanId = parseInt(storedUser.user_id); 
         
         console.log("Fetching for ID:", cleanId); // Check karne ke liye
