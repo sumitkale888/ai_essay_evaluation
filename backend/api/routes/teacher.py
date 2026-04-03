@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from ..models import TopicCreate
 from ..core.database import get_db_connection
+from ..core.plagiarism import PlagiarismDetector
 
 router = APIRouter()
 
@@ -33,15 +34,63 @@ def get_topic_submissions(topic_id: int):
     cursor = db.cursor(dictionary=True)
     try:
         query = """
-            SELECT u.name, g.final_score 
+            SELECT
+                e.essay_id,
+                e.student_id,
+                e.essay_text,
+                e.submission_date,
+                u.name,
+                g.final_score
             FROM Users u
             JOIN Essays e ON u.user_id = e.student_id
             JOIN Evaluations ev ON e.essay_id = ev.essay_id
             JOIN Grades g ON ev.evaluation_id = g.evaluation_id
             WHERE e.topic_id = %s
+            ORDER BY e.submission_date DESC
         """
         cursor.execute(query, (topic_id,))
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+
+        detector = PlagiarismDetector()
+        report = []
+
+        for row in rows:
+            current_text = row.get("essay_text") or ""
+            max_similarity = 0.0
+            suspected_source = None
+
+            for candidate in rows:
+                if candidate["essay_id"] == row["essay_id"]:
+                    continue
+
+                similarity = detector.calculate_similarity(current_text, candidate.get("essay_text") or "")
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    suspected_source = {
+                        "student_id": candidate["student_id"],
+                        "name": candidate["name"],
+                        "essay_id": candidate["essay_id"],
+                        "similarity_percentage": round(similarity * 100, 2),
+                    }
+
+            plagiarism_percentage = round(max_similarity * 100, 2)
+            plagiarism_level = detector.classify_plagiarism_level(plagiarism_percentage)
+            is_plagiarized = plagiarism_percentage >= 50
+
+            report.append({
+                "essay_id": row["essay_id"],
+                "student_id": row["student_id"],
+                "student_name": row["name"],
+                "final_score": float(row["final_score"]),
+                "plagiarism_percentage": plagiarism_percentage,
+                "plagiarism_level": plagiarism_level,
+                "is_plagiarized": is_plagiarized,
+                "suspected_source": suspected_source,
+                "submission_date": row["submission_date"],
+            })
+
+        report.sort(key=lambda item: item["submission_date"], reverse=True)
+        return report
     finally:
         db.close()
 

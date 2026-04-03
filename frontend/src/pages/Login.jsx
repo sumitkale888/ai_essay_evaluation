@@ -21,14 +21,15 @@ const Login = () => {
             navigate('/student-dashboard');
         }
     } catch (err) {
-        alert("Invalid Credentials");
+        const errorMessage = err.response?.data?.detail || err.message || "Login failed. Please try again.";
+        setError(errorMessage);
     }
 };
 
     return (
         <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-xl shadow-lg">
             <h2 className="text-3xl font-bold text-center text-blue-600 mb-6">AI Essay Grader</h2>
-            {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+            {error && <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
             <form onSubmit={handleLogin} className="space-y-4">
                 <input 
                     type="email" placeholder="Email" required

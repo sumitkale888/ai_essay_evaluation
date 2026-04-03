@@ -1,0 +1,25 @@
+# AI Essay Evaluation System - Dependencies
+# Core Framework
+fastapi==0.129.0
+uvicorn==0.41.0
+pydantic==2.12.5
+
+# Database
+mysql-connector-python==9.6.0
+
+# Security & Auth
+passlib[argon2]==1.7.4.3
+
+# Prolog Logic Engine
+pyswip==0.3.3
+
+# Plagiarism Detection
+scikit-learn==1.6.1
+numpy==1.26.4
+scipy==1.13.1
+
+# Environment Management
+python-dotenv==1.2.1
+
+# Frontend (Node.js) - package.json handled separately
+# React, Vite, Tailwind CSS setup in frontend folder

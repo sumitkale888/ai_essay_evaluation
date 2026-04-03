@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { teacherService, essayService } from '../services/api';
+import { teacherService } from '../services/api';
 
 const TeacherDashboard = () => {
     
@@ -17,12 +17,30 @@ const TeacherDashboard = () => {
       
         const data = await teacherService.getTopicsForTeacher(); 
         setTopics(data);
-    } catch (err) {
+    } catch {
         console.error("Failed to fetch topics");
     }
 };
 
-    useEffect(() => { refreshTopics(); }, []);
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadTopics = async () => {
+            try {
+                const data = await teacherService.getTopicsForTeacher();
+                if (isMounted) {
+                    setTopics(data);
+                }
+            } catch {
+                console.error("Failed to fetch topics");
+            }
+        };
+
+        loadTopics();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleAddTopic = async (e) => {
         e.preventDefault();
@@ -36,7 +54,7 @@ const TeacherDashboard = () => {
             alert("Topic Added Successfully!");
             setTitle(''); setDesc(''); setKeywords('');
             refreshTopics(); 
-        } catch (err) {
+        } catch {
             alert("Error adding topic.");
         }
     };
@@ -52,7 +70,7 @@ const TeacherDashboard = () => {
         try {
             const data = await teacherService.getSubmissions(id);
             setSelectedSubmissions(data);
-        } catch (err) {
+        } catch {
             alert("Could not fetch submissions. Check if database column exists.");
         }
     };
@@ -122,14 +140,40 @@ const TeacherDashboard = () => {
                         <div className="space-y-3">
                             {selectedSubmissions.length === 0 && <p className="text-gray-500 text-center">No one has submitted yet.</p>}
                             {selectedSubmissions.map((sub, i) => (
-                                <div key={i} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                                    <div className="flex justify-between items-center">
-                                        <span className="font-bold text-gray-800">{sub.name}</span>
-                                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-black text-sm">
+                                <div
+                                    key={i}
+                                    className={`bg-white p-4 rounded-xl shadow-sm border-l-4 ${
+                                        sub.is_plagiarized ? 'border-red-500' : 'border-green-500'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-center gap-3">
+                                        <span className="font-bold text-gray-800">{sub.student_name || sub.name}</span>
+                                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-black text-sm whitespace-nowrap">
                                             {sub.final_score}/10
                                         </span>
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-2">Completed</p>
+
+                                    <div className="mt-2 flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">Plagiarism</span>
+                                        <span
+                                            className={`font-bold ${
+                                                sub.is_plagiarized ? 'text-red-600' : 'text-emerald-600'
+                                            }`}
+                                        >
+                                            {sub.plagiarism_percentage ?? 0}% ({sub.plagiarism_level || 'low'})
+                                        </span>
+                                    </div>
+
+                                    {sub.suspected_source && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Most similar to: <span className="font-semibold">{sub.suspected_source.name}</span>
+                                            {' '}({sub.suspected_source.similarity_percentage}%)
+                                        </p>
+                                    )}
+
+                                    <p className="text-xs text-gray-400 mt-2">
+                                        {sub.is_plagiarized ? 'Flagged for plagiarism review' : 'Completed'}
+                                    </p>
                                 </div>
                             ))}
                         </div>

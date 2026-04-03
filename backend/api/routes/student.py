@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from ..models import EssaySubmission
 from ..core.database import get_db_connection
+from ..core.evaluation import EssayEvaluator
 from pyswip import Prolog
-import os, re
+import os
 
 router = APIRouter()
 prolog = Prolog()
@@ -15,6 +16,9 @@ try:
     print(f"Prolog consulted successfully from: {prolog_path}")
 except Exception as e:
     print(f"Error consulting Prolog: {e}")
+
+# Initialize essay evaluator
+evaluator = EssayEvaluator(prolog)
 
 
 @router.get("/get-topics-student")
@@ -34,12 +38,12 @@ def get_student_history(student_id: int):
     cursor = db.cursor(dictionary=True)
     try:
         query = """
-            SELECT t.title, g.final_score, f.feedback_text, e.submission_date
+            SELECT t.title, g.final_score, f.feedback_text, e.submission_date, e.essay_id
             FROM Essays e
             JOIN Topics t ON e.topic_id = t.topic_id
-            JOIN Evaluations ev ON e.essay_id = ev.essay_id
-            JOIN Grades g ON ev.evaluation_id = g.evaluation_id
-            JOIN Feedback f ON ev.evaluation_id = f.evaluation_id
+            LEFT JOIN Evaluations ev ON e.essay_id = ev.essay_id
+            LEFT JOIN Grades g ON ev.evaluation_id = g.evaluation_id
+            LEFT JOIN Feedback f ON ev.evaluation_id = f.evaluation_id
             WHERE e.student_id = %s
             ORDER BY e.submission_date DESC
         """
@@ -51,73 +55,95 @@ def get_student_history(student_id: int):
         db.close()
 
 
+@router.post("/submit")
 @router.post("/submit-essay")
 def submit_essay(submission: EssaySubmission):
+    """
+    Submit and evaluate an essay with plagiarism detection.
+    
+    Flow:
+    1. Check if topic exists
+    2. Evaluate content quality via Prolog
+    3. Check plagiarism against previous submissions
+    4. Apply plagiarism penalty to base score
+    5. Store results in database
+    """
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        
+        # 1. Verify topic exists
         cursor.execute("SELECT keywords FROM Topics WHERE topic_id = %s", (submission.topic_id,))
         topic_row = cursor.fetchone()
-        if not topic_row: 
+        if not topic_row:
             raise HTTPException(status_code=404, detail="Topic not found")
-
-       
-        raw_keywords = topic_row.get('keywords') or ""
-        kw_list = [f"'{k.strip().lower()}'" for k in raw_keywords.split(',') if k.strip()]
-        prolog_keywords = "[" + ",".join(kw_list) + "]"
         
-      
-        clean_text = re.sub(r"[^a-zA-Z0-9\s]", "", submission.essay_text).lower()
-        words = clean_text.split()
-        word_count = len(words) 
-
-        if word_count < 10: 
-            return {"status": "error", "message": "Essay too short (minimum 10 words)."}
-
-      
-        prolog_text_list = "[" + ",".join([f"'{w}'" for w in words]) + "]"
-        query_str = f"evaluate_essay({prolog_text_list}, {prolog_keywords}, Score, Feedback)"
-        result = list(prolog.query(query_str))
+        keywords = topic_row.get('keywords') or ""
         
-        if result:
-            score = result[0]["Score"]
-            feedback_raw = result[0]["Feedback"]
-         
-            if isinstance(feedback_raw, bytes):
-                feedback = feedback_raw.decode("utf-8")
-            elif isinstance(feedback_raw, list):
-                feedback = "".join([chr(c) for c in feedback_raw])
-            else:
-                feedback = str(feedback_raw)
-        else:
-            score = 0
-            feedback = "The essay structure or relevance did not meet the evaluation criteria."
-
-       
-        cursor.execute("INSERT INTO Essays (student_id, topic_id, essay_text) VALUES (%s, %s, %s)",
-                       (submission.student_id, submission.topic_id, submission.essay_text))
+        # 2. Run complete evaluation (content quality + plagiarism)
+        evaluation_result = evaluator.evaluate_essay(
+            essay_text=submission.essay_text,
+            keywords=keywords,
+            topic_id=submission.topic_id,
+            student_id=submission.student_id
+        )
+        
+        # If essay is too short, return early
+        if evaluation_result['status'] == 'error':
+            return evaluation_result
+        
+        # 3. Save essay to database
+        cursor.execute(
+            "INSERT INTO Essays (student_id, topic_id, essay_text) VALUES (%s, %s, %s)",
+            (submission.student_id, submission.topic_id, submission.essay_text)
+        )
         essay_id = cursor.lastrowid
         
-        
-        cursor.execute("INSERT INTO Evaluations (essay_id) VALUES (%s)", (essay_id,))
+        # 4. Save evaluation results
+        cursor.execute(
+            "INSERT INTO Evaluations (essay_id) VALUES (%s)",
+            (essay_id,)
+        )
         eval_id = cursor.lastrowid
         
+        # 5. Store grade (with plagiarism penalty applied)
+        cursor.execute(
+            "INSERT INTO Grades (evaluation_id, final_score) VALUES (%s, %s)",
+            (eval_id, evaluation_result['score'])
+        )
         
-        cursor.execute("INSERT INTO Grades (evaluation_id, final_score) VALUES (%s, %s)", (eval_id, score))
-        cursor.execute("INSERT INTO Feedback (evaluation_id, feedback_text) VALUES (%s, %s)", (eval_id, feedback))
+        # 6. Store feedback
+        combined_feedback = f"{evaluation_result['feedback']}\n\n{evaluation_result['plagiarism_feedback']}"
+        cursor.execute(
+            "INSERT INTO Feedback (evaluation_id, feedback_text) VALUES (%s, %s)",
+            (eval_id, combined_feedback)
+        )
+        
+        # 7. Store plagiarism metadata if exists (optional - for future detailed analysis)
+        # You can add a new PlagiarismCheck table if needed
         
         db.commit()
         
-      
+        # 8. Return comprehensive evaluation result
         return {
-            "status": "success", 
-            "score": score, 
-            "feedback": feedback, 
-            "word_count": word_count
+            "status": "success",
+            "score": evaluation_result['score'],
+            "base_score": evaluation_result['base_score'],
+            "plagiarism": evaluation_result['plagiarism'],
+            "plagiarism_level": evaluation_result['plagiarism_level'],
+            "feedback": evaluation_result['feedback'],
+            "plagiarism_feedback": evaluation_result['plagiarism_feedback'],
+            "word_count": evaluation_result['word_count'],
+            "is_plagiarized": evaluation_result['is_plagiarized'],
+            "comparison_count": len(evaluation_result.get('detailed_comparisons', [])),
+            "essay_id": essay_id
         }
+    
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
+        print(f"Error in submit_essay: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()

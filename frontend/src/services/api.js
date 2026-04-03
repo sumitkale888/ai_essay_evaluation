@@ -9,6 +9,16 @@ const api = axios.create({
     },
 });
 
+// Add response interceptor for error handling
+api.interceptors.response.use(
+    response => response,
+    error => {
+        // Log error for debugging
+        console.error('API Error:', error.response?.data || error.message);
+        return Promise.reject(error);
+    }
+);
+
 export const authService = {
     login: async (email, password) => {
         const response = await api.post('/login', { email, password });

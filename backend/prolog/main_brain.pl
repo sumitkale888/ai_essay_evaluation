@@ -5,6 +5,7 @@
 :- [grammar_rules].
 :- [grading_logic].
 :- [structure_rules].
+:- [plagiarism_rules].
 
 
 evaluate_essay(TextList, TopicKeywords, FinalScore, Feedback) :-

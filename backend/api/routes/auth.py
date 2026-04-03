@@ -43,5 +43,7 @@ def login(request: LoginRequest):
                 "name": user["name"]
             }
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
