@@ -23,8 +23,8 @@ const ResultView = () => {
     if (!result) return <p className="text-center mt-10">No result found.</p>;
 
     return (
-        <div className="max-w-4xl mx-auto mt-10 p-8 bg-white rounded-3xl shadow-xl border border-gray-50">
-            <h2 className="text-3xl font-extrabold text-center text-gray-900 mb-8">AI Evaluation Result</h2>
+        <div className="max-w-4xl mx-auto mt-10 p-8 bg-gradient-to-b from-white to-blue-50/60 rounded-3xl shadow-xl border border-blue-100">
+            <h2 className="text-3xl font-extrabold text-center text-slate-900 mb-8">AI Evaluation Result</h2>
             
             <div className="flex flex-col items-center mb-10">
                 <div className="relative flex items-center justify-center w-[150px] h-[150px]">
@@ -61,7 +61,7 @@ const ResultView = () => {
                         <span className="mt-1 text-sm font-bold text-blue-500">/10</span>
                     </div>
                 </div>
-                <p className="mt-4 text-gray-500 font-semibold uppercase tracking-widest">Final Grade</p>
+                <p className="mt-4 text-slate-500 font-semibold uppercase tracking-widest">Final Grade</p>
                             {result.base_score && result.base_score !== result.score && (
                                 <p className="mt-2 text-sm text-orange-600">
                                     Base Score: {result.base_score}/10 (Plagiarism penalty applied)
@@ -70,7 +70,7 @@ const ResultView = () => {
             </div>
 
             <div className="space-y-6">
-                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200">
+                <div className="bg-blue-50/80 p-6 rounded-2xl border border-blue-200">
                     <h3 className="text-blue-800 font-bold mb-2 flex items-center">
                         <span className="mr-2">📝</span> Content Evaluation
                     </h3>
@@ -110,15 +110,15 @@ const ResultView = () => {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                        <p className="text-xs text-gray-400 uppercase font-bold">Word Count</p>
-                        <p className="text-xl font-bold text-gray-700">{result.word_count}</p>
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <p className="text-xs text-slate-400 uppercase font-bold">Word Count</p>
+                        <p className="text-xl font-bold text-slate-700">{result.word_count}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                        <p className="text-xs text-gray-400 uppercase font-bold">Status</p>
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <p className="text-xs text-slate-400 uppercase font-bold">Status</p>
                         <p className="text-xl font-bold text-green-600">Evaluated</p>
-                                        <div className="p-4 bg-gray-50 rounded-xl">
-                                            <p className="text-xs text-gray-400 uppercase font-bold">Originality</p>
+                                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                            <p className="text-xs text-slate-400 uppercase font-bold">Originality</p>
                                             <p className={`text-xl font-bold ${result.plagiarism < 20 ? 'text-green-600' : 'text-orange-600'}`}>
                                                 {Math.round(100 - result.plagiarism)}%
                                             </p>

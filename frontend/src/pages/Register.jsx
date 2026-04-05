@@ -28,45 +28,46 @@ const Register = () => {
     };
 
     return (
-        <div className="max-w-md mx-auto mt-16 p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
-            <h2 className="text-3xl font-black text-center text-gray-800 mb-2">Create Account</h2>
-            <p className="text-center text-gray-500 mb-8">Join the AI Assessment Framework</p>
+        <div className="max-w-md mx-auto mt-12 p-8 bg-white/95 rounded-2xl shadow-xl border border-indigo-100">
+            <div className="h-1.5 w-32 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 mx-auto mb-6"></div>
+            <h2 className="text-3xl font-black text-center text-slate-800 mb-2">Create Account</h2>
+            <p className="text-center text-slate-500 mb-8">Join the AI Assessment Framework</p>
             
             {error && <p className="bg-red-50 text-red-500 p-3 rounded-lg text-center mb-4 text-sm font-medium">{error}</p>}
             
             <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
                     <input 
                         name="name" type="text" placeholder="Sumit Kale" required
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
                         onChange={handleChange}
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
                     <input 
                         name="email" type="email" placeholder="name@example.com" required
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
                         onChange={handleChange}
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Password</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
                     <input 
                         name="password" type="password" placeholder="••••••••" required
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
                         onChange={handleChange}
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">I am a...</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">I am a...</label>
                     <select 
                         name="role" 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                         onChange={handleChange}
                         value={formData.role}
                     >
@@ -75,12 +76,12 @@ const Register = () => {
                     </select>
                 </div>
 
-                <button type="submit" className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold text-lg hover:bg-blue-700 transform hover:-translate-y-1 transition shadow-lg shadow-blue-200">
+                <button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 rounded-xl font-bold text-lg hover:from-indigo-700 hover:to-blue-700 transform hover:-translate-y-1 transition shadow-lg shadow-indigo-200">
                     Sign Up
                 </button>
             </form>
 
-            <p className="text-center mt-6 text-gray-600">
+            <p className="text-center mt-6 text-slate-600">
                 Already have an account? <Link to="/" className="text-blue-600 font-bold hover:underline">Login</Link>
             </p>
         </div>

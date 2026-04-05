@@ -27,7 +27,7 @@ const SubmitEssay = () => {
             const result = await essayService.submitEssay(payload);
             // Navigate to result page with the AI data
             navigate('/result', { state: { result } });
-        } catch (err) {
+        } catch {
             alert("Evaluation failed. Check backend connection.");
         } finally {
             setLoading(false);
@@ -35,10 +35,11 @@ const SubmitEssay = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-sm">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Write Your Essay</h2>
+        <div className="max-w-4xl mx-auto p-6 bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-lg border border-blue-100">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Write Your Essay</h2>
+            <p className="text-sm text-slate-500 mb-4">Share your response clearly and keep it original.</p>
             <textarea
-                className="w-full h-80 p-4 border-2 border-gray-100 rounded-xl focus:border-blue-400 outline-none resize-none text-lg"
+                className="w-full h-80 p-4 border-2 border-blue-100 bg-white rounded-xl focus:border-blue-400 outline-none resize-none text-lg"
                 placeholder="Start typing your essay here..."
                 value={essay}
                 onChange={(e) => setEssay(e.target.value)}
@@ -46,12 +47,12 @@ const SubmitEssay = () => {
             ></textarea>
             
             <div className="flex justify-between items-center mt-4">
-                <span className="text-gray-500 font-medium">Word Count: {wordCount}</span>
+                <span className="text-slate-500 font-medium">Word Count: {wordCount}</span>
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
                     className={`px-8 py-3 rounded-lg font-bold text-white transition ${
-                        loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                        loading ? 'bg-slate-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-sm'
                     }`}
                 >
                     {loading ? 'AI is Evaluating...' : 'Submit for AI Grading'}
