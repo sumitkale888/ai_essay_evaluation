@@ -7,8 +7,16 @@ const ResultView = () => {
     const { result } = location.state || {};
     console.log("Evaluation Result Object:", result);
 
-    const maxScore = 10;
     const rawScore = Number(result?.score ?? 0);
+    let displayScore, displayMax;
+    if (Number.isFinite(rawScore) && rawScore > 10) {
+        displayScore = Math.round(rawScore);
+        displayMax = 100;
+    } else {
+        displayScore = Number.isFinite(rawScore) ? rawScore.toFixed(2).replace(/\.00$/, '') : '0';
+        displayMax = 10;
+    }
+    const maxScore = displayMax;
     const safeScore = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore, 0), maxScore) : 0;
     const progress = safeScore / maxScore;
     const radius = 62;
@@ -16,9 +24,6 @@ const ResultView = () => {
     const circleSize = 150;
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference * (1 - progress);
-    const displayScore = Number.isFinite(rawScore)
-        ? rawScore.toFixed(2).replace(/\.00$/, '')
-        : '0';
 
     if (!result) return <p className="text-center mt-10">No result found.</p>;
 
@@ -58,7 +63,7 @@ const ResultView = () => {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
                         <span className="text-5xl font-black text-blue-700 tracking-tight">{displayScore}</span>
-                        <span className="mt-1 text-sm font-bold text-blue-500">/10</span>
+                        <span className="mt-1 text-sm font-bold text-blue-500">/{displayMax}</span>
                     </div>
                 </div>
                 <p className="mt-4 text-slate-500 font-semibold uppercase tracking-widest">Final Grade</p>

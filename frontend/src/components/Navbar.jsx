@@ -27,11 +27,8 @@ const Navbar = () => {
             <div className="flex items-center gap-6">
                 {user?.role === 'teacher' && (
                     <div className="flex gap-4 border-r pr-4 border-white/30">
-                        <Link to="/teacher/create-topic" className="text-blue-50 hover:text-cyan-200 font-semibold transition-colors">
-                            Add Topic
-                        </Link>
                         <Link to="/teacher/topics" className="text-blue-50 hover:text-cyan-200 font-semibold transition-colors">
-                            Manage Topics
+                            Classrooms
                         </Link>
                     </div>
                 )}

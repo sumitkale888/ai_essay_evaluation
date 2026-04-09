@@ -7,7 +7,6 @@ import ResultView from './pages/ResultView';
 import Navbar from './components/Navbar';
 
 // NEW TEACHER PAGES
-import CreateTopic from './pages/CreateTopic';
 import ExistingTopics from './pages/ExistingTopics';
 import StudentSubmissions from './pages/StudentSubmissions';
 
@@ -28,7 +27,7 @@ function App() {
             <Route path="/result" element={<ResultView />} />
 
             {/* Teacher Routes (Separated) */}
-            <Route path="/teacher/create-topic" element={<CreateTopic />} />
+            <Route path="/teacher/create-topic" element={<Navigate to="/teacher/topics" />} />
             <Route path="/teacher/topics" element={<ExistingTopics />} />
             <Route path="/teacher/submissions/:topicId" element={<StudentSubmissions />} />
             

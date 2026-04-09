@@ -33,9 +33,19 @@ export const authService = {
 
 
 export const essayService = {
-   
-    getTopicsForStudent: async () => {
-        const response = await api.get('/student/get-topics-student'); 
+    getStudentClassrooms: async (studentId) => {
+        const response = await api.get(`/student/classrooms/${studentId}`);
+        return response.data;
+    },
+
+    joinClassroom: async (payload) => {
+        const response = await api.post('/student/join-classroom', payload);
+        return response.data;
+    },
+
+    getTopicsForStudent: async (studentId, classroomId = null) => {
+        const params = classroomId ? `?classroom_id=${classroomId}` : '';
+        const response = await api.get(`/student/get-topics-student/${studentId}${params}`);
         return response.data;
     },
 
@@ -53,9 +63,25 @@ export const essayService = {
 };
 
 export const teacherService = {
-   
-    getTopicsForTeacher: async () => {
-        const response = await api.get('/teacher/get-topics-teacher');
+    createClassroom: async (payload) => {
+        const response = await api.post('/teacher/create-classroom', payload);
+        return response.data;
+    },
+
+    getClassrooms: async (teacherId) => {
+        const response = await api.get(`/teacher/classrooms/${teacherId}`);
+        return response.data;
+    },
+
+    deleteClassroom: async (classroomId, teacherId) => {
+        const response = await api.delete(`/teacher/delete-classroom/${classroomId}`, {
+            params: { teacher_id: teacherId },
+        });
+        return response.data;
+    },
+
+    getTopicsForTeacher: async (teacherId) => {
+        const response = await api.get(`/teacher/get-topics-teacher/${teacherId}`);
         return response.data;
     },
     addTopic: async (topicData) => {

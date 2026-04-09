@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import auth, teacher, student
+from .core.database import initialize_database
 
 app = FastAPI()
 
@@ -17,6 +18,11 @@ app.include_router(auth.router, tags=["Authentication"]) # No prefix for login/r
 app.include_router(teacher.router, prefix="/teacher", tags=["Teacher Actions"])
 
 app.include_router(student.router, prefix="/student", tags=["Student Actions"])
+
+
+@app.on_event("startup")
+def startup_event():
+    initialize_database()
 
 @app.get("/")
 def home():

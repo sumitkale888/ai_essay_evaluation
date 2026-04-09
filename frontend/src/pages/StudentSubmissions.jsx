@@ -41,7 +41,10 @@ const StudentSubmissions = () => {
                                 <td className="p-5 font-bold text-slate-800">{sub.student_name || sub.name}</td>
                                 <td className="p-5">
                                     <span className="bg-green-100 text-green-700 px-4 py-1 rounded-full font-black">
-                                        {sub.final_score}/10
+                                        {Number(sub.final_score) > 10
+                                            ? `${Math.round(Number(sub.final_score))}/100`
+                                            : `${Number(sub.final_score).toFixed(2).replace(/\.00$/, '')}/10`
+                                        }
                                     </span>
                                 </td>
                                 <td className="p-5">

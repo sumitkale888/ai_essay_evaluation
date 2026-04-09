@@ -18,6 +18,18 @@ class TopicCreate(BaseModel):
     description: Optional[str] = ""
     keywords: str = ""
     teacher_id: int
+    classroom_id: Optional[int] = None
+
+
+class ClassroomCreate(BaseModel):
+    teacher_id: int
+    subject_name: str
+    classroom_name: Optional[str] = ""
+
+
+class ClassroomJoinRequest(BaseModel):
+    student_id: int
+    join_code: str
 
 
 class EssaySubmission(BaseModel):

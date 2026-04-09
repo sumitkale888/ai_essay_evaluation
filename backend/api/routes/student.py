@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from ..models import EssaySubmission
+from ..models import EssaySubmission, ClassroomJoinRequest
 from ..core.database import get_db_connection
 from ..core.evaluation import EssayEvaluator
 from pyswip import Prolog
@@ -21,12 +21,84 @@ except Exception as e:
 evaluator = EssayEvaluator(prolog)
 
 
-@router.get("/get-topics-student")
-def get_topics_student():
+@router.post("/join-classroom")
+def join_classroom(payload: ClassroomJoinRequest):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT topic_id, title, description FROM Topics")
+        join_code = payload.join_code.strip().upper()
+        cursor.execute(
+            """
+            SELECT classroom_id, classroom_name, subject_name
+            FROM Classrooms
+            WHERE join_code = %s
+            """,
+            (join_code,)
+        )
+        classroom = cursor.fetchone()
+        if not classroom:
+            raise HTTPException(status_code=404, detail="Invalid classroom code")
+
+        cursor.execute(
+            """
+            INSERT INTO ClassroomMembers (classroom_id, student_id)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE joined_at = CURRENT_TIMESTAMP
+            """,
+            (classroom["classroom_id"], payload.student_id)
+        )
+        db.commit()
+        return {
+            "message": "Classroom joined successfully",
+            "classroom": classroom,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/classrooms/{student_id}")
+def get_student_classrooms(student_id: int):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT c.classroom_id, c.classroom_name, c.subject_name, c.join_code,
+                   c.created_at, u.name AS teacher_name
+            FROM ClassroomMembers cm
+            JOIN Classrooms c ON c.classroom_id = cm.classroom_id
+            LEFT JOIN Users u ON u.user_id = c.teacher_id
+            WHERE cm.student_id = %s
+            ORDER BY c.created_at DESC
+            """,
+            (student_id,)
+        )
+        return cursor.fetchall()
+    finally:
+        db.close()
+
+
+@router.get("/get-topics-student/{student_id}")
+def get_topics_student(student_id: int, classroom_id: int | None = None):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        base_query = """
+            SELECT t.topic_id, t.title, t.description, t.classroom_id,
+                   c.classroom_name, c.subject_name
+            FROM Topics t
+            JOIN ClassroomMembers cm ON cm.classroom_id = t.classroom_id
+            LEFT JOIN Classrooms c ON c.classroom_id = t.classroom_id
+            WHERE cm.student_id = %s
+        """
+        params = [student_id]
+
+        if classroom_id is not None:
+            base_query += " AND t.classroom_id = %s"
+            params.append(classroom_id)
+
+        base_query += " ORDER BY t.topic_id DESC"
+        cursor.execute(base_query, tuple(params))
         return cursor.fetchall()
     finally:
         db.close()
@@ -72,10 +144,23 @@ def submit_essay(submission: EssaySubmission):
     cursor = db.cursor(dictionary=True)
     try:
         # 1. Verify topic exists
-        cursor.execute("SELECT keywords FROM Topics WHERE topic_id = %s", (submission.topic_id,))
+        cursor.execute("SELECT keywords, classroom_id FROM Topics WHERE topic_id = %s", (submission.topic_id,))
         topic_row = cursor.fetchone()
         if not topic_row:
             raise HTTPException(status_code=404, detail="Topic not found")
+
+        classroom_id = topic_row.get("classroom_id")
+        if classroom_id is not None:
+            cursor.execute(
+                """
+                SELECT 1 FROM ClassroomMembers
+                WHERE classroom_id = %s AND student_id = %s
+                """,
+                (classroom_id, submission.student_id)
+            )
+            member = cursor.fetchone()
+            if not member:
+                raise HTTPException(status_code=403, detail="Student is not enrolled in this classroom")
         
         keywords = topic_row.get('keywords') or ""
         
