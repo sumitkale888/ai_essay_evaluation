@@ -219,6 +219,10 @@ def submit_essay(submission: EssaySubmission):
             "plagiarism_feedback": evaluation_result['plagiarism_feedback'],
             "word_count": evaluation_result['word_count'],
             "is_plagiarized": evaluation_result['is_plagiarized'],
+            "rubric_breakdown": evaluation_result.get('rubric_breakdown', {}),
+            "improvement_tips": evaluation_result.get('improvement_tips', []),
+            "score_band": evaluation_result.get('score_band', 'needs improvement'),
+            "originality_label": evaluation_result.get('originality_label', 'highly original'),
             "comparison_count": len(evaluation_result.get('detailed_comparisons', [])),
             "essay_id": essay_id
         }

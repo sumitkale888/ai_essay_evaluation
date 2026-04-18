@@ -6,6 +6,10 @@ const ExistingTopics = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     const navigate = useNavigate();
 
+    const TAB_CREATE = 'create';
+    const TAB_CLASSROOMS = 'classrooms';
+    const TAB_ASSIGNMENTS = 'assignments';
+
     const [classrooms, setClassrooms] = useState([]);
     const [topics, setTopics] = useState([]);
 
@@ -16,6 +20,7 @@ const ExistingTopics = () => {
     const [desc, setDesc] = useState('');
     const [keywords, setKeywords] = useState('');
     const [selectedClassroomId, setSelectedClassroomId] = useState('');
+    const [activeTab, setActiveTab] = useState(TAB_CREATE);
 
     const groupedTopics = useMemo(() => {
         return topics.reduce((acc, topic) => {
@@ -137,7 +142,46 @@ const ExistingTopics = () => {
         <div className="max-w-7xl mx-auto space-y-8">
             <h1 className="text-3xl font-black text-slate-800">Teacher Classroom Dashboard</h1>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab(TAB_CREATE)}
+                        className={`px-4 py-3 rounded-xl font-bold text-sm transition ${
+                            activeTab === TAB_CREATE
+                                ? 'bg-emerald-600 text-white shadow'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                    >
+                        Create
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab(TAB_CLASSROOMS)}
+                        className={`px-4 py-3 rounded-xl font-bold text-sm transition ${
+                            activeTab === TAB_CLASSROOMS
+                                ? 'bg-emerald-600 text-white shadow'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                    >
+                        Classrooms
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab(TAB_ASSIGNMENTS)}
+                        className={`px-4 py-3 rounded-xl font-bold text-sm transition ${
+                            activeTab === TAB_ASSIGNMENTS
+                                ? 'bg-emerald-600 text-white shadow'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                    >
+                        Assignments
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === TAB_CREATE && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <form onSubmit={handleCreateClassroom} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
                     <h2 className="text-lg font-bold text-slate-700">Create Classroom</h2>
                     <input
@@ -153,7 +197,7 @@ const ExistingTopics = () => {
                         value={classroomName}
                         onChange={(e) => setClassroomName(e.target.value)}
                     />
-                    <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">
+                    <button className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700">
                         Create Classroom
                     </button>
                 </form>
@@ -193,13 +237,15 @@ const ExistingTopics = () => {
                         onChange={(e) => setKeywords(e.target.value)}
                         required
                     />
-                    <button className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700">
+                    <button className="w-full bg-amber-600 text-white py-3 rounded-xl font-bold hover:bg-amber-700">
                         Publish Assignment
                     </button>
                 </form>
-            </div>
+                </div>
+            )}
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            {activeTab === TAB_CLASSROOMS && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h2 className="text-lg font-bold text-slate-700 mb-4">Your Classrooms</h2>
                 {classrooms.length === 0 && <p className="text-slate-500">No classrooms yet.</p>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -209,7 +255,7 @@ const ExistingTopics = () => {
                             <p className="text-sm text-slate-600">{room.subject_name}</p>
                             <p className="text-xs text-slate-500 mt-1">Students: {room.student_count}</p>
                             <div className="mt-3 flex items-center gap-2">
-                                <span className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-black text-sm">
+                                <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 font-black text-sm">
                                     Code: {room.join_code}
                                 </span>
                                 <a
@@ -230,9 +276,11 @@ const ExistingTopics = () => {
                         </div>
                     ))}
                 </div>
-            </div>
+                </div>
+            )}
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            {activeTab === TAB_ASSIGNMENTS && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h2 className="text-lg font-bold text-slate-700 mb-4">Assignments</h2>
                 {topics.length === 0 && <p className="text-slate-500">No assignments published yet.</p>}
                 <div className="space-y-6">
@@ -251,7 +299,7 @@ const ExistingTopics = () => {
                                             <div className="mt-3 flex gap-2">
                                                 <button
                                                     onClick={() => navigate(`/teacher/submissions/${topic.topic_id}`)}
-                                                    className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm font-bold"
+                                                    className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold"
                                                 >
                                                     View Submissions
                                                 </button>
@@ -269,7 +317,8 @@ const ExistingTopics = () => {
                         );
                     })}
                 </div>
-            </div>
+                </div>
+            )}
         </div>
     );
 };

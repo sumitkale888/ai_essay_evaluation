@@ -11,6 +11,8 @@
    directory_file_path(RulesDir, 'intro_conclusion_rules.pl', IntroConclusionRules),
    directory_file_path(RulesDir, 'logic_rules.pl', LogicRules),
    directory_file_path(RulesDir, 'fact_rules.pl', FactRules),
+    directory_file_path(RulesDir, 'analytics_rules.pl', AnalyticsRules),
+    directory_file_path(RulesDir, 'improvement_rules.pl', ImprovementRules),
    directory_file_path(RulesDir, 'essay_quality_aggregation.pl', AggregationRules),
    ensure_loaded(TextUtils),
    ensure_loaded(ArgumentRules),
@@ -21,4 +23,6 @@
    ensure_loaded(IntroConclusionRules),
    ensure_loaded(LogicRules),
    ensure_loaded(FactRules),
+    ensure_loaded(AnalyticsRules),
+    ensure_loaded(ImprovementRules),
    ensure_loaded(AggregationRules).

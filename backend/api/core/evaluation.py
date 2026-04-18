@@ -88,7 +88,11 @@ class EssayEvaluator:
                 "feedback": "Essay is too short to evaluate.",
                 "plagiarism_feedback": "",
                 "word_count": word_count,
-                "is_plagiarized": False
+                "is_plagiarized": False,
+                "rubric_breakdown": {},
+                "improvement_tips": [],
+                "score_band": "needs_improvement",
+                "originality_label": "highly_original"
             }
         
         # 3. Get content quality score from Prolog
@@ -138,6 +142,12 @@ class EssayEvaluator:
         
         # 5. Apply plagiarism penalty
         final_score = self._apply_plagiarism_penalty(base_score, plagiarism_percentage, plagiarism_level)
+
+        # 5b. Prolog-first explainability features
+        rubric_breakdown = self._get_score_breakdown(prolog_text_list, prolog_keywords)
+        improvement_tips = self._get_improvement_tips(prolog_text_list, prolog_keywords)
+        score_band = self._get_score_band(final_score)
+        originality_label = self._get_originality_label(plagiarism_percentage)
         
         # 6. Determine if plagiarized (threshold: 50%)
         is_plagiarized = plagiarism_percentage >= 50
@@ -152,15 +162,98 @@ class EssayEvaluator:
             "word_count": word_count,
             "is_plagiarized": is_plagiarized,
             "base_score": round(base_score, 2),
-            "detailed_comparisons": detailed_comparisons
+            "detailed_comparisons": detailed_comparisons,
+            "rubric_breakdown": rubric_breakdown,
+            "improvement_tips": improvement_tips,
+            "score_band": score_band,
+            "originality_label": originality_label
         }
 
     def _normalize_prolog_value(self, value: Any) -> str:
         if isinstance(value, bytes):
             return value.decode("utf-8")
         if isinstance(value, list):
-            return "".join(chr(item) for item in value)
+            if all(isinstance(item, int) for item in value):
+                return "".join(chr(item) for item in value)
+            return " ".join(self._normalize_prolog_value(item) for item in value)
         return str(value)
+
+    def _normalize_label(self, value: Any) -> str:
+        return self._normalize_prolog_value(value).strip().replace("_", " ")
+
+    def _get_score_breakdown(self, prolog_text_list: str, prolog_keywords: str) -> Dict[str, int]:
+        try:
+            query = (
+                "score_breakdown("
+                f"{prolog_text_list}, {prolog_keywords}, "
+                "Argument, Coherence, Vocabulary, Sentence, Intro, Conclusion, Logic, Fact, Relevance)"
+            )
+            result = list(self.prolog.query(query))
+            if result:
+                row = result[0]
+                return {
+                    "argument": int(row.get("Argument", 0)),
+                    "coherence": int(row.get("Coherence", 0)),
+                    "vocabulary": int(row.get("Vocabulary", 0)),
+                    "sentence": int(row.get("Sentence", 0)),
+                    "introduction": int(row.get("Intro", 0)),
+                    "conclusion": int(row.get("Conclusion", 0)),
+                    "logic": int(row.get("Logic", 0)),
+                    "facts": int(row.get("Fact", 0)),
+                    "relevance": int(row.get("Relevance", 0)),
+                }
+        except Exception as e:
+            print(f"Prolog score breakdown error: {e}")
+        return {}
+
+    def _get_improvement_tips(self, prolog_text_list: str, prolog_keywords: str, limit: int = 5) -> list:
+        try:
+            result = list(self.prolog.query(f"improvement_tip({prolog_text_list}, {prolog_keywords}, Tip)"))
+            tips = []
+            seen = set()
+            for row in result:
+                tip = self._normalize_prolog_value(row.get("Tip", "")).strip()
+                if tip and tip not in seen:
+                    tips.append(tip)
+                    seen.add(tip)
+                if len(tips) >= limit:
+                    break
+            return tips
+        except Exception as e:
+            print(f"Prolog improvement tips error: {e}")
+            return []
+
+    def _get_score_band(self, final_score: float) -> str:
+        try:
+            result = list(self.prolog.query(f"score_band({final_score}, Band)"))
+            if result:
+                return self._normalize_label(result[0]["Band"])
+        except Exception as e:
+            print(f"Prolog score band error: {e}")
+
+        if final_score >= 85:
+            return "excellent"
+        if final_score >= 70:
+            return "good"
+        if final_score >= 50:
+            return "fair"
+        return "needs improvement"
+
+    def _get_originality_label(self, plagiarism_percentage: float) -> str:
+        try:
+            result = list(self.prolog.query(f"originality_label({plagiarism_percentage}, Label)"))
+            if result:
+                return self._normalize_label(result[0]["Label"])
+        except Exception as e:
+            print(f"Prolog originality label error: {e}")
+
+        if plagiarism_percentage < 20:
+            return "highly original"
+        if plagiarism_percentage < 40:
+            return "mostly original"
+        if plagiarism_percentage < 70:
+            return "review needed"
+        return "high risk similarity"
 
     def _classify_plagiarism_with_prolog(self, plagiarism_percentage: float) -> str:
         try:

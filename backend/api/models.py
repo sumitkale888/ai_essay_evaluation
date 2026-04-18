@@ -54,3 +54,7 @@ class EvaluationResult(BaseModel):
     plagiarism_feedback: str
     word_count: int
     is_plagiarized: bool
+    rubric_breakdown: Optional[dict] = None
+    improvement_tips: Optional[List[str]] = None
+    score_band: Optional[str] = None
+    originality_label: Optional[str] = None
