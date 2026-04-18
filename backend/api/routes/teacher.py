@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from ..models import TopicCreate, ClassroomCreate
+from ..models import TopicCreate, ClassroomCreate, TeacherReviewCreate
 from ..core.database import get_db_connection
 from ..core.plagiarism import PlagiarismDetector
 import secrets
@@ -100,6 +100,16 @@ def delete_classroom(classroom_id: int, teacher_id: int):
         if not classroom:
             raise HTTPException(status_code=404, detail="Classroom not found for this teacher")
 
+        cursor.execute(
+            """
+            DELETE tr
+            FROM TeacherReviews tr
+            JOIN Essays e ON tr.essay_id = e.essay_id
+            JOIN Topics t ON e.topic_id = t.topic_id
+            WHERE t.classroom_id = %s
+            """,
+            (classroom_id,)
+        )
         cursor.execute(
             """
             DELETE f
@@ -210,11 +220,19 @@ def get_topic_submissions(topic_id: int):
                 e.essay_text,
                 e.submission_date,
                 u.name,
-                g.final_score
+                g.final_score,
+                f.feedback_text AS ai_feedback,
+                tr.teacher_score,
+                tr.teacher_feedback,
+                tr.reviewed_at,
+                tu.name AS reviewed_by
             FROM Users u
             JOIN Essays e ON u.user_id = e.student_id
             JOIN Evaluations ev ON e.essay_id = ev.essay_id
             JOIN Grades g ON ev.evaluation_id = g.evaluation_id
+            LEFT JOIN Feedback f ON ev.evaluation_id = f.evaluation_id
+            LEFT JOIN TeacherReviews tr ON tr.essay_id = e.essay_id
+            LEFT JOIN Users tu ON tu.user_id = tr.teacher_id
             WHERE e.topic_id = %s
             ORDER BY e.submission_date DESC
         """
@@ -251,7 +269,13 @@ def get_topic_submissions(topic_id: int):
                 "essay_id": row["essay_id"],
                 "student_id": row["student_id"],
                 "student_name": row["name"],
+                "essay_text": row.get("essay_text") or "",
                 "final_score": float(row["final_score"]),
+                "ai_feedback": row.get("ai_feedback") or "",
+                "teacher_score": float(row["teacher_score"]) if row.get("teacher_score") is not None else None,
+                "teacher_feedback": row.get("teacher_feedback") or "",
+                "teacher_reviewed_at": row.get("reviewed_at"),
+                "teacher_name": row.get("reviewed_by"),
                 "plagiarism_percentage": plagiarism_percentage,
                 "plagiarism_level": plagiarism_level,
                 "is_plagiarized": is_plagiarized,
@@ -264,12 +288,64 @@ def get_topic_submissions(topic_id: int):
     finally:
         db.close()
 
+
+@router.post("/review-submission")
+def review_submission(payload: TeacherReviewCreate):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        if payload.teacher_score is not None and (payload.teacher_score < 0 or payload.teacher_score > 100):
+            raise HTTPException(status_code=400, detail="Teacher score must be between 0 and 100")
+
+        cursor.execute(
+            """
+            SELECT e.essay_id
+            FROM Essays e
+            JOIN Topics t ON t.topic_id = e.topic_id
+            WHERE e.essay_id = %s AND t.teacher_id = %s
+            """,
+            (payload.essay_id, payload.teacher_id)
+        )
+        owned = cursor.fetchone()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Essay not found for this teacher")
+
+        cursor.execute(
+            """
+            INSERT INTO TeacherReviews (essay_id, teacher_id, teacher_score, teacher_feedback)
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                teacher_id = VALUES(teacher_id),
+                teacher_score = VALUES(teacher_score),
+                teacher_feedback = VALUES(teacher_feedback),
+                reviewed_at = CURRENT_TIMESTAMP
+            """,
+            (
+                payload.essay_id,
+                payload.teacher_id,
+                payload.teacher_score,
+                (payload.teacher_feedback or "").strip() or None,
+            )
+        )
+
+        db.commit()
+        return {"message": "Teacher review saved successfully", "essay_id": payload.essay_id}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 @router.delete("/delete-topic/{topic_id}")
 def delete_topic(topic_id: int):
     db = get_db_connection()
     cursor = db.cursor()
     try:
        
+        cursor.execute("DELETE tr FROM TeacherReviews tr JOIN Essays e ON tr.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
         cursor.execute("DELETE f FROM Feedback f JOIN Evaluations ev ON f.evaluation_id = ev.evaluation_id JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
         cursor.execute("DELETE g FROM Grades g JOIN Evaluations ev ON g.evaluation_id = ev.evaluation_id JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
         cursor.execute("DELETE ev FROM Evaluations ev JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))

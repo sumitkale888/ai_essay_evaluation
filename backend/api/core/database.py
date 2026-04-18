@@ -59,6 +59,21 @@ def initialize_database():
 
         cursor.execute(
             """
+            CREATE TABLE IF NOT EXISTS TeacherReviews (
+                review_id INT AUTO_INCREMENT PRIMARY KEY,
+                essay_id INT NOT NULL,
+                teacher_id INT NOT NULL,
+                teacher_score DECIMAL(5,2) NULL,
+                teacher_feedback TEXT NULL,
+                reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_teacher_review_essay (essay_id),
+                INDEX idx_teacher_reviews_teacher_id (teacher_id)
+            )
+            """
+        )
+
+        cursor.execute(
+            """
             SELECT COUNT(*)
             FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = DATABASE()

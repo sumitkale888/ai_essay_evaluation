@@ -110,12 +110,15 @@ def get_student_history(student_id: int):
     cursor = db.cursor(dictionary=True)
     try:
         query = """
-            SELECT t.title, g.final_score, f.feedback_text, e.submission_date, e.essay_id
+            SELECT t.title, g.final_score, f.feedback_text, e.submission_date, e.essay_id,
+                   tr.teacher_score, tr.teacher_feedback, tr.reviewed_at, tu.name AS teacher_name
             FROM Essays e
             JOIN Topics t ON e.topic_id = t.topic_id
             LEFT JOIN Evaluations ev ON e.essay_id = ev.essay_id
             LEFT JOIN Grades g ON ev.evaluation_id = g.evaluation_id
             LEFT JOIN Feedback f ON ev.evaluation_id = f.evaluation_id
+            LEFT JOIN TeacherReviews tr ON tr.essay_id = e.essay_id
+            LEFT JOIN Users tu ON tu.user_id = tr.teacher_id
             WHERE e.student_id = %s
             ORDER BY e.submission_date DESC
         """

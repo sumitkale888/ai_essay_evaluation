@@ -95,6 +95,10 @@ export const teacherService = {
     getSubmissions: async (topicId) => {
         const response = await api.get(`/teacher/topic-submissions/${topicId}`);
         return response.data;
+    },
+    saveSubmissionReview: async (payload) => {
+        const response = await api.post('/teacher/review-submission', payload);
+        return response.data;
     }
 };
 

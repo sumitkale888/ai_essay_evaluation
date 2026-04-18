@@ -1,9 +1,13 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, NavLink, useLocation } from 'react-router-dom';
 
 const Navbar = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user'));
+    const isStudentDashboard = location.pathname === '/student-dashboard';
+    const isClassroomsTab = isStudentDashboard && (!location.search || location.search.includes('tab=classrooms'));
+    const isPerformanceTab = isStudentDashboard && location.search.includes('tab=performance');
 
   
     const getHomeLink = () => {
@@ -30,6 +34,35 @@ const Navbar = () => {
                         <Link to="/teacher/topics" className="text-emerald-50 hover:text-lime-200 font-semibold transition-colors">
                             Classrooms
                         </Link>
+                    </div>
+                )}
+
+                {user?.role === 'student' && (
+                    <div className="flex gap-2 border-r pr-4 border-white/30">
+                        <NavLink
+                            to="/student-dashboard?tab=classrooms"
+                            className={() =>
+                                `px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                                    isClassroomsTab
+                                        ? 'bg-white text-emerald-700'
+                                        : 'text-emerald-50 hover:bg-white/20'
+                                }`
+                            }
+                        >
+                            Classrooms
+                        </NavLink>
+                        <NavLink
+                            to="/student-dashboard?tab=performance"
+                            className={() =>
+                                `px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                                    isPerformanceTab
+                                        ? 'bg-white text-emerald-700'
+                                        : 'text-emerald-50 hover:bg-white/20'
+                                }`
+                            }
+                        >
+                            Performance
+                        </NavLink>
                     </div>
                 )}
                 

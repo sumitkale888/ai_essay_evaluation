@@ -38,6 +38,13 @@ class EssaySubmission(BaseModel):
     essay_text: str
 
 
+class TeacherReviewCreate(BaseModel):
+    essay_id: int
+    teacher_id: int
+    teacher_score: Optional[float] = None
+    teacher_feedback: Optional[str] = ""
+
+
 class PlagiarismResult(BaseModel):
     plagiarism_percentage: float
     plagiarism_level: str
