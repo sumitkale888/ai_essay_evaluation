@@ -5,8 +5,10 @@ Integrates plagiarism detection with content quality scoring and Prolog-based ev
 
 from .plagiarism import PlagiarismDetector
 from ..core.database import get_db_connection
+from ..core.cache import cache_manager, evaluation_cache_key
 from pyswip import Prolog
 import re
+import hashlib
 from typing import Tuple, Dict, Any
 
 
@@ -76,6 +78,15 @@ class EssayEvaluator:
         word_count = len(essay_text.split())
         clean_text = re.sub(r"[^a-zA-Z0-9\s]", "", essay_text).lower()
         words = clean_text.split()
+
+        text_fingerprint = hashlib.sha256(
+            f"{topic_id}|{keywords}|{clean_text}".encode("utf-8")
+        ).hexdigest()
+        cache_key = evaluation_cache_key(topic_id, text_fingerprint)
+
+        cached = cache_manager.get_json(cache_key)
+        if cached:
+            return cached
         
         # 2. Check for minimum length
         if word_count < 10:
@@ -152,7 +163,7 @@ class EssayEvaluator:
         # 6. Determine if plagiarized (threshold: 50%)
         is_plagiarized = plagiarism_percentage >= 50
         
-        return {
+        payload = {
             "status": "success",
             "score": round(final_score, 2),
             "plagiarism": round(plagiarism_percentage, 2),
@@ -168,6 +179,9 @@ class EssayEvaluator:
             "score_band": score_band,
             "originality_label": originality_label
         }
+
+        cache_manager.set_json(cache_key, payload, ttl_seconds=900)
+        return payload
 
     def _normalize_prolog_value(self, value: Any) -> str:
         if isinstance(value, bytes):

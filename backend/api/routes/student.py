@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from ..models import EssaySubmission, ClassroomJoinRequest
 from ..core.database import get_db_connection
 from ..core.evaluation import EssayEvaluator
+from ..core.cache import cache_manager, student_topics_cache_key
+from ..core.submission_pipeline import process_submission
 from pyswip import Prolog
 import os
 
@@ -48,6 +50,7 @@ def join_classroom(payload: ClassroomJoinRequest):
             (classroom["classroom_id"], payload.student_id)
         )
         db.commit()
+        cache_manager.delete_pattern(f"student:topics:{payload.student_id}:*")
         return {
             "message": "Classroom joined successfully",
             "classroom": classroom,
@@ -80,6 +83,11 @@ def get_student_classrooms(student_id: int):
 
 @router.get("/get-topics-student/{student_id}")
 def get_topics_student(student_id: int, classroom_id: int | None = None):
+    cache_key = student_topics_cache_key(student_id, classroom_id)
+    cached = cache_manager.get_json(cache_key)
+    if cached is not None:
+        return cached
+
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
@@ -99,7 +107,9 @@ def get_topics_student(student_id: int, classroom_id: int | None = None):
 
         base_query += " ORDER BY t.topic_id DESC"
         cursor.execute(base_query, tuple(params))
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        cache_manager.set_json(cache_key, rows, ttl_seconds=300)
+        return rows
     finally:
         db.close()
 
@@ -133,109 +143,15 @@ def get_student_history(student_id: int):
 @router.post("/submit")
 @router.post("/submit-essay")
 def submit_essay(submission: EssaySubmission):
-    """
-    Submit and evaluate an essay with plagiarism detection.
-    
-    Flow:
-    1. Check if topic exists
-    2. Evaluate content quality via Prolog
-    3. Check plagiarism against previous submissions
-    4. Apply plagiarism penalty to base score
-    5. Store results in database
-    """
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
     try:
-        # 1. Verify topic exists
-        cursor.execute("SELECT keywords, classroom_id FROM Topics WHERE topic_id = %s", (submission.topic_id,))
-        topic_row = cursor.fetchone()
-        if not topic_row:
-            raise HTTPException(status_code=404, detail="Topic not found")
-
-        classroom_id = topic_row.get("classroom_id")
-        if classroom_id is not None:
-            cursor.execute(
-                """
-                SELECT 1 FROM ClassroomMembers
-                WHERE classroom_id = %s AND student_id = %s
-                """,
-                (classroom_id, submission.student_id)
-            )
-            member = cursor.fetchone()
-            if not member:
-                raise HTTPException(status_code=403, detail="Student is not enrolled in this classroom")
-        
-        keywords = topic_row.get('keywords') or ""
-        
-        # 2. Run complete evaluation (content quality + plagiarism)
-        evaluation_result = evaluator.evaluate_essay(
-            essay_text=submission.essay_text,
-            keywords=keywords,
+        return process_submission(
+            student_id=submission.student_id,
             topic_id=submission.topic_id,
-            student_id=submission.student_id
+            essay_text=submission.essay_text,
+            evaluator=evaluator,
         )
-        
-        # If essay is too short, return early
-        if evaluation_result['status'] == 'error':
-            return evaluation_result
-        
-        # 3. Save essay to database
-        cursor.execute(
-            "INSERT INTO Essays (student_id, topic_id, essay_text) VALUES (%s, %s, %s)",
-            (submission.student_id, submission.topic_id, submission.essay_text)
-        )
-        essay_id = cursor.lastrowid
-        
-        # 4. Save evaluation results
-        cursor.execute(
-            "INSERT INTO Evaluations (essay_id) VALUES (%s)",
-            (essay_id,)
-        )
-        eval_id = cursor.lastrowid
-        
-        # 5. Store grade (with plagiarism penalty applied)
-        cursor.execute(
-            "INSERT INTO Grades (evaluation_id, final_score) VALUES (%s, %s)",
-            (eval_id, evaluation_result['score'])
-        )
-        
-        # 6. Store feedback
-        combined_feedback = f"{evaluation_result['feedback']}\n\n{evaluation_result['plagiarism_feedback']}"
-        cursor.execute(
-            "INSERT INTO Feedback (evaluation_id, feedback_text) VALUES (%s, %s)",
-            (eval_id, combined_feedback)
-        )
-        
-        # 7. Store plagiarism metadata if exists (optional - for future detailed analysis)
-        # You can add a new PlagiarismCheck table if needed
-        
-        db.commit()
-        
-        # 8. Return comprehensive evaluation result
-        return {
-            "status": "success",
-            "score": evaluation_result['score'],
-            "base_score": evaluation_result['base_score'],
-            "plagiarism": evaluation_result['plagiarism'],
-            "plagiarism_level": evaluation_result['plagiarism_level'],
-            "feedback": evaluation_result['feedback'],
-            "plagiarism_feedback": evaluation_result['plagiarism_feedback'],
-            "word_count": evaluation_result['word_count'],
-            "is_plagiarized": evaluation_result['is_plagiarized'],
-            "rubric_breakdown": evaluation_result.get('rubric_breakdown', {}),
-            "improvement_tips": evaluation_result.get('improvement_tips', []),
-            "score_band": evaluation_result.get('score_band', 'needs improvement'),
-            "originality_label": evaluation_result.get('originality_label', 'highly original'),
-            "comparison_count": len(evaluation_result.get('detailed_comparisons', [])),
-            "essay_id": essay_id
-        }
-    
     except HTTPException:
-        db.rollback()
         raise
     except Exception as e:
-        db.rollback()
         print(f"Error in submit_essay: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()

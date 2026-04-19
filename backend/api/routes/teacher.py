@@ -3,6 +3,7 @@ from ..models import TopicCreate, ClassroomCreate, TeacherReviewCreate
 from ..core.database import get_db_connection
 from ..core.plagiarism import PlagiarismDetector
 from ..core.analytics import TeacherAnalyticsService
+from ..core.cache import cache_manager, teacher_topics_cache_key
 import secrets
 import string
 
@@ -194,27 +195,33 @@ def add_topic(topic: TopicCreate):
         values = (topic.title, topic.description, topic.keywords, topic.teacher_id, topic.classroom_id)
         cursor.execute(query, values)
         db.commit()
+        cache_manager.delete(teacher_topics_cache_key(topic.teacher_id))
         return {"message": "Topic added successfully", "topic_id": cursor.lastrowid}
     finally:
         db.close()
 
 @router.get("/get-topics-teacher/{teacher_id}")
 def get_topics_teacher(teacher_id: int):
+    cache_key = teacher_topics_cache_key(teacher_id)
+    cached = cache_manager.get_json(cache_key)
+    if cached is not None:
+        return cached
+
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     try:
-        cursor.execute(
-            """
+        query = """
             SELECT t.topic_id, t.title, t.description, t.keywords, t.classroom_id,
                    c.classroom_name, c.subject_name
             FROM Topics t
             LEFT JOIN Classrooms c ON c.classroom_id = t.classroom_id
             WHERE t.teacher_id = %s
             ORDER BY t.topic_id DESC
-            """,
-            (teacher_id,)
-        )
-        return cursor.fetchall()
+        """
+        cursor.execute(query, (teacher_id,))
+        rows = cursor.fetchall()
+        cache_manager.set_json(cache_key, rows, ttl_seconds=300)
+        return rows
     finally:
         db.close()
 
@@ -355,6 +362,10 @@ def delete_topic(topic_id: int):
     cursor = db.cursor()
     try:
        
+        cursor.execute("SELECT teacher_id FROM Topics WHERE topic_id = %s", (topic_id,))
+        owner = cursor.fetchone()
+        owner_id = owner[0] if owner else None
+
         cursor.execute("DELETE tr FROM TeacherReviews tr JOIN Essays e ON tr.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
         cursor.execute("DELETE f FROM Feedback f JOIN Evaluations ev ON f.evaluation_id = ev.evaluation_id JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
         cursor.execute("DELETE g FROM Grades g JOIN Evaluations ev ON g.evaluation_id = ev.evaluation_id JOIN Essays e ON ev.essay_id = e.essay_id WHERE e.topic_id = %s", (topic_id,))
@@ -362,6 +373,8 @@ def delete_topic(topic_id: int):
         cursor.execute("DELETE FROM Essays WHERE topic_id = %s", (topic_id,))
         cursor.execute("DELETE FROM Topics WHERE topic_id = %s", (topic_id,))
         db.commit()
+        if owner_id is not None:
+            cache_manager.delete(teacher_topics_cache_key(owner_id))
         return {"message": "Topic deleted successfully"}
     except Exception as e:
         db.rollback()

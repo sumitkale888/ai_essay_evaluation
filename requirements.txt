@@ -8,7 +8,7 @@ pydantic==2.12.5
 mysql-connector-python==9.6.0
 
 # Security & Auth
-passlib[argon2]==1.7.4.3
+passlib[argon2]==1.7.4
 
 # Prolog Logic Engine
 pyswip==0.3.3
@@ -20,6 +20,17 @@ scipy==1.13.1
 
 # Environment Management
 python-dotenv==1.2.1
+
+# Caching & Background Processing
+redis==5.2.1
+celery==5.4.0
+
+# File Upload & Extraction
+python-multipart==0.0.12
+pypdf==5.1.0
+python-docx==1.1.2
+# Optional for legacy .doc extraction (requires antiword/catdoc installed)
+# textract==1.6.5
 
 # Frontend (Node.js) - package.json handled separately
 # React, Vite, Tailwind CSS setup in frontend folder

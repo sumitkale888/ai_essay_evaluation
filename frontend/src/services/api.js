@@ -60,6 +60,42 @@ export const essayService = {
         const response = await api.post('/student/submit-essay', payload);
         return response.data;
     },
+    submitEssayAsync: async (payload) => {
+        const response = await api.post('/student/submit-essay-async', payload);
+        return response.data;
+    },
+    getTaskStatus: async (taskId) => {
+        const response = await api.get(`/student/task-status/${taskId}`);
+        return response.data;
+    },
+    extractEssayText: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/student/extract-essay-text', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+    submitFileAsync: async (studentId, topicId, file) => {
+        const formData = new FormData();
+        formData.append('student_id', String(studentId));
+        formData.append('topic_id', String(topicId));
+        formData.append('file', file);
+        const response = await api.post('/student/submit-file-async', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+    submitFile: async (studentId, topicId, file) => {
+        const formData = new FormData();
+        formData.append('student_id', String(studentId));
+        formData.append('topic_id', String(topicId));
+        formData.append('file', file);
+        const response = await api.post('/student/submit-file', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
 };
 
 export const teacherService = {
