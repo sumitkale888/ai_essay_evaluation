@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 // NEW TEACHER PAGES
 import ExistingTopics from './pages/ExistingTopics';
 import StudentSubmissions from './pages/StudentSubmissions';
+import TeacherAnalytics from './pages/TeacherAnalytics';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             {/* Teacher Routes (Separated) */}
             <Route path="/teacher/create-topic" element={<Navigate to="/teacher/topics" />} />
             <Route path="/teacher/topics" element={<ExistingTopics />} />
+            <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
             <Route path="/teacher/submissions/:topicId" element={<StudentSubmissions />} />
             
             {/* Redirects to prevent blank pages or handle old links */}

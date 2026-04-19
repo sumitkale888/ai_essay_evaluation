@@ -2,10 +2,20 @@ from fastapi import APIRouter, HTTPException
 from ..models import TopicCreate, ClassroomCreate, TeacherReviewCreate
 from ..core.database import get_db_connection
 from ..core.plagiarism import PlagiarismDetector
+from ..core.analytics import TeacherAnalyticsService
 import secrets
 import string
 
 router = APIRouter()
+analytics_service = TeacherAnalyticsService()
+
+
+@router.get("/analytics/{teacher_id}")
+def get_teacher_analytics(teacher_id: int):
+    try:
+        return analytics_service.get_teacher_analytics(teacher_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def _generate_join_code(size: int = 8) -> str:

@@ -34,6 +34,9 @@ const Navbar = () => {
                         <Link to="/teacher/topics" className="text-emerald-50 hover:text-lime-200 font-semibold transition-colors">
                             Classrooms
                         </Link>
+                        <Link to="/teacher/analytics" className="text-emerald-50 hover:text-lime-200 font-semibold transition-colors">
+                            Analytics
+                        </Link>
                     </div>
                 )}
 
