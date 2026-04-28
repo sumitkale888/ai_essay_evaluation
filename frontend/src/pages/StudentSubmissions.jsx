@@ -2,6 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { teacherService } from '../services/api';
 
+const getPlagiarismLevel = (value) => {
+    const percentage = Number(value);
+
+    if (!Number.isFinite(percentage) || percentage <= 0) return 'low';
+    if (percentage < 30) return 'low';
+    if (percentage <= 70) return 'medium';
+    if (percentage < 90) return 'high';
+    return 'critical';
+};
+
 const StudentSubmissions = () => {
     const { topicId } = useParams();
     const [submissions, setSubmissions] = useState([]);
@@ -83,6 +93,8 @@ const StudentSubmissions = () => {
                         {submissions.map((sub, i) => {
                             const draft = getDraft(sub);
                             const isExpanded = expandedEssayId === sub.essay_id;
+                            const plagiarismPercentage = Number(sub.plagiarism_percentage ?? 0);
+                            const plagiarismLevel = getPlagiarismLevel(plagiarismPercentage);
                             const isTeacherReviewed = Boolean(
                                 sub.teacher_reviewed_at ||
                                 sub.teacher_score !== null ||
@@ -118,7 +130,7 @@ const StudentSubmissions = () => {
                                                         : 'bg-emerald-100 text-emerald-700'
                                                 }`}
                                             >
-                                                {sub.plagiarism_percentage ?? 0}% ({sub.plagiarism_level || 'low'})
+                                                {plagiarismPercentage.toFixed(2).replace(/\.00$/, '')}% ({plagiarismLevel})
                                             </span>
                                         </td>
                                         <td className="p-5 text-sm text-slate-700">
@@ -142,7 +154,7 @@ const StudentSubmissions = () => {
                                             >
                                                 {isTeacherReviewed
                                                     ? 'Reviewed by teacher'
-                                                    : sub.is_plagiarized
+                                                    : plagiarismLevel !== 'low'
                                                         ? 'Needs review'
                                                         : 'Evaluated by AI'}
                                             </span>

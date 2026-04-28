@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { teacherService } from '../services/api';
 
+const getPlagiarismLevel = (value) => {
+    const percentage = Number(value);
+
+    if (!Number.isFinite(percentage) || percentage <= 0) return 'low';
+    if (percentage < 30) return 'low';
+    if (percentage <= 70) return 'medium';
+    if (percentage < 90) return 'high';
+    return 'critical';
+};
+
 const TeacherDashboard = () => {
     
     const [topics, setTopics] = useState([]);
@@ -140,6 +150,11 @@ const TeacherDashboard = () => {
                         <div className="space-y-3">
                             {selectedSubmissions.length === 0 && <p className="text-slate-500 text-center">No one has submitted yet.</p>}
                             {selectedSubmissions.map((sub, i) => (
+                                (() => {
+                                    const plagiarismPercentage = Number(sub.plagiarism_percentage ?? 0);
+                                    const plagiarismLevel = getPlagiarismLevel(plagiarismPercentage);
+
+                                    return (
                                 <div
                                     key={i}
                                     className={`bg-white p-4 rounded-xl shadow-sm border-l-4 ${
@@ -160,7 +175,7 @@ const TeacherDashboard = () => {
                                                 sub.is_plagiarized ? 'text-red-600' : 'text-emerald-600'
                                             }`}
                                         >
-                                            {sub.plagiarism_percentage ?? 0}% ({sub.plagiarism_level || 'low'})
+                                            {plagiarismPercentage.toFixed(2).replace(/\.00$/, '')}% ({plagiarismLevel})
                                         </span>
                                     </div>
 
@@ -172,9 +187,11 @@ const TeacherDashboard = () => {
                                     )}
 
                                     <p className="text-xs text-slate-400 mt-2">
-                                        {sub.is_plagiarized ? 'Flagged for plagiarism review' : 'Completed'}
+                                        {plagiarismLevel !== 'low' ? 'Flagged for plagiarism review' : 'Completed'}
                                     </p>
                                 </div>
+                                    );
+                                })()
                             ))}
                         </div>
                     )}
