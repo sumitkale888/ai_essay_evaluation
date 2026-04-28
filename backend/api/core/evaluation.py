@@ -109,39 +109,44 @@ class EssayEvaluator:
             }
         
         # 3. Get content quality score from Prolog
-        try:
-            # Convert teacher keyword phrases into normalized word tokens so
-            # Prolog relevance can intersect with the tokenized essay content.
-            keyword_tokens = []
-            for kw in keywords.split(','):
-                keyword_tokens.extend(re.findall(r"[a-zA-Z0-9]+", kw.lower()))
+        # Convert teacher keyword phrases into normalized word tokens so
+        # Prolog relevance can intersect with the tokenized essay content.
+        keyword_tokens = []
+        for kw in keywords.split(','):
+            keyword_tokens.extend(re.findall(r"[a-zA-Z0-9]+", kw.lower()))
 
-            # Keep deterministic order while removing duplicates.
-            deduped_keyword_tokens = list(dict.fromkeys(token for token in keyword_tokens if token))
-            kw_list = [f"'{k}'" for k in deduped_keyword_tokens]
-            prolog_keywords = "[" + ",".join(kw_list) + "]"
-            prolog_text_list = "[" + ",".join([f"'{w}'" for w in words]) + "]"
-            
+        # Keep deterministic order while removing duplicates.
+        deduped_keyword_tokens = list(dict.fromkeys(token for token in keyword_tokens if token))
+        kw_list = [f"'{k}'" for k in deduped_keyword_tokens]
+        prolog_keywords = "[" + ",".join(kw_list) + "]"
+        prolog_text_list = "[" + ",".join([f"'{w}'" for w in words]) + "]"
+
+        base_score = 40
+        prolog_feedback = "The essay structure or relevance did not meet evaluation criteria."
+        try:
             query_str = f"evaluate_essay({prolog_text_list}, {prolog_keywords}, Score, Feedback)"
             result = list(self.prolog.query(query_str))
-            
+
             if result:
                 base_score = float(result[0]["Score"])
                 prolog_feedback = result[0]["Feedback"]
-                
+
                 if isinstance(prolog_feedback, bytes):
                     prolog_feedback = prolog_feedback.decode("utf-8")
                 elif isinstance(prolog_feedback, list):
                     prolog_feedback = "".join([chr(c) for c in prolog_feedback])
                 else:
                     prolog_feedback = str(prolog_feedback)
-            else:
-                base_score = 40
-                prolog_feedback = "The essay structure or relevance did not meet evaluation criteria."
         except Exception as e:
             print(f"Prolog evaluation error: {e}")
-            base_score = 40
             prolog_feedback = f"Error in evaluation: {str(e)}"
+
+        # Reward essays that cover the teacher's keywords, even when the
+        # structural heuristics are conservative.
+        matched_keywords = len(set(words).intersection(deduped_keyword_tokens))
+        keyword_coverage = (matched_keywords / len(deduped_keyword_tokens)) if deduped_keyword_tokens else 0.0
+        keyword_bonus = round(keyword_coverage * 15)
+        adjusted_base_score = min(100.0, base_score + keyword_bonus)
         
         # 4. Check plagiarism
         previous_essays = self.get_previous_essays_for_topic(topic_id, exclude_student_id=student_id)
@@ -154,7 +159,7 @@ class EssayEvaluator:
         plagiarism_feedback = self._get_plagiarism_feedback(plagiarism_percentage, plagiarism_level)
         
         # 5. Apply plagiarism penalty
-        final_score = self._apply_plagiarism_penalty(base_score, plagiarism_percentage, plagiarism_level)
+        final_score = self._apply_plagiarism_penalty(adjusted_base_score, plagiarism_percentage, plagiarism_level)
 
         # 5b. Prolog-first explainability features
         rubric_breakdown = self._get_score_breakdown(prolog_text_list, prolog_keywords)
@@ -175,6 +180,8 @@ class EssayEvaluator:
             "word_count": word_count,
             "is_plagiarized": is_plagiarized,
             "base_score": round(base_score, 2),
+            "keyword_coverage": round(keyword_coverage * 100, 2),
+            "keyword_bonus": keyword_bonus,
             "detailed_comparisons": detailed_comparisons,
             "rubric_breakdown": rubric_breakdown,
             "improvement_tips": improvement_tips,
