@@ -64,3 +64,7 @@ def teacher_topics_cache_key(teacher_id: int) -> str:
 
 def evaluation_cache_key(topic_id: int, text_hash: str) -> str:
     return f"evaluation:{topic_id}:{text_hash}"
+
+
+def teacher_analytics_cache_key(teacher_id: int) -> str:
+    return f"teacher:analytics:{teacher_id}"

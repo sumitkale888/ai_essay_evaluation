@@ -79,8 +79,10 @@ class EssayEvaluator:
         clean_text = re.sub(r"[^a-zA-Z0-9\s]", "", essay_text).lower()
         words = clean_text.split()
 
+        # NOTE: Include student_id in cache key so that the same essay submitted by different
+        # students gets evaluated separately (plagiarism detection depends on student_id)
         text_fingerprint = hashlib.sha256(
-            f"{topic_id}|{keywords}|{clean_text}".encode("utf-8")
+            f"{topic_id}|{keywords}|{clean_text}|{student_id}".encode("utf-8")
         ).hexdigest()
         cache_key = evaluation_cache_key(topic_id, text_fingerprint)
 

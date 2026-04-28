@@ -30,13 +30,17 @@ const AnalyticsHeatmap = ({ heatmap }) => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {entries.map(([key, value]) => {
                 const score = Number(value) || 0;
+                const percent = Math.max(0, Math.min(100, score * 10));
                 return (
                     <div key={key} className="border border-slate-200 rounded-lg p-2 bg-white">
-                        <p className="text-[11px] font-semibold text-slate-600">{DIMENSION_LABELS[key] || key}</p>
-                        <div className="mt-1 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-semibold text-slate-600">{DIMENSION_LABELS[key] || key}</p>
+                            <span className="text-xs font-bold text-slate-700">{percent.toFixed(0)}%</span>
+                        </div>
+                        <div className="mt-2 h-4 w-full bg-slate-100 rounded-full overflow-hidden">
                             <div
                                 className={`h-full ${scoreClass(score)}`}
-                                style={{ width: `${Math.max(0, Math.min(100, score * 10))}%` }}
+                                style={{ width: `${percent}%` }}
                             />
                         </div>
                         <p className="text-[10px] text-slate-500 mt-1">{score.toFixed(1)}/10</p>

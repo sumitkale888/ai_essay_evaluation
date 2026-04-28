@@ -3,7 +3,7 @@ from ..models import TopicCreate, ClassroomCreate, TeacherReviewCreate
 from ..core.database import get_db_connection
 from ..core.plagiarism import PlagiarismDetector
 from ..core.analytics import TeacherAnalyticsService
-from ..core.cache import cache_manager, teacher_topics_cache_key
+from ..core.cache import cache_manager, teacher_topics_cache_key, teacher_analytics_cache_key
 import secrets
 import string
 
@@ -14,7 +14,18 @@ analytics_service = TeacherAnalyticsService()
 @router.get("/analytics/{teacher_id}")
 def get_teacher_analytics(teacher_id: int):
     try:
-        return analytics_service.get_teacher_analytics(teacher_id)
+        # Return cached analytics if available
+        cache_key = teacher_analytics_cache_key(teacher_id)
+        cached = cache_manager.get_json(cache_key)
+        if cached is not None:
+            return cached
+
+        data = analytics_service.get_teacher_analytics(teacher_id)
+        try:
+            cache_manager.set_json(cache_key, data, ttl_seconds=300)
+        except Exception:
+            pass
+        return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -167,6 +178,13 @@ def delete_classroom(classroom_id: int, teacher_id: int):
         cursor.execute("DELETE FROM Classrooms WHERE classroom_id = %s", (classroom_id,))
 
         db.commit()
+        # Invalidate cached topics list for this teacher so frontend sees updated assignments
+        try:
+            cache_manager.delete(teacher_topics_cache_key(teacher_id))
+            cache_manager.delete(teacher_analytics_cache_key(teacher_id))
+        except Exception:
+            # cache invalidation failure shouldn't block the deletion
+            pass
         return {"message": "Classroom deleted successfully"}
     except HTTPException:
         db.rollback()
@@ -195,7 +213,11 @@ def add_topic(topic: TopicCreate):
         values = (topic.title, topic.description, topic.keywords, topic.teacher_id, topic.classroom_id)
         cursor.execute(query, values)
         db.commit()
-        cache_manager.delete(teacher_topics_cache_key(topic.teacher_id))
+        try:
+            cache_manager.delete(teacher_topics_cache_key(topic.teacher_id))
+            cache_manager.delete(teacher_analytics_cache_key(topic.teacher_id))
+        except Exception:
+            pass
         return {"message": "Topic added successfully", "topic_id": cursor.lastrowid}
     finally:
         db.close()
@@ -374,7 +396,11 @@ def delete_topic(topic_id: int):
         cursor.execute("DELETE FROM Topics WHERE topic_id = %s", (topic_id,))
         db.commit()
         if owner_id is not None:
-            cache_manager.delete(teacher_topics_cache_key(owner_id))
+            try:
+                cache_manager.delete(teacher_topics_cache_key(owner_id))
+                cache_manager.delete(teacher_analytics_cache_key(owner_id))
+            except Exception:
+                pass
         return {"message": "Topic deleted successfully"}
     except Exception as e:
         db.rollback()
