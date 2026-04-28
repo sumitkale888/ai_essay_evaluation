@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { teacherService } from '../services/api';
 import TrendSparkline from '../components/TrendSparkline';
 import AnalyticsHeatmap from '../components/AnalyticsHeatmap';
@@ -23,21 +23,21 @@ const TeacherAnalytics = () => {
         loadAnalytics();
     }, [user.user_id]);
 
-    const scoreTrend = useMemo(() => {
-        if (!analytics?.improvement_trends) return [];
-        return analytics.improvement_trends.map((item) => ({
-            label: item.month,
-            value: item.average_score,
-        }));
-    }, [analytics]);
+    // const scoreTrend = useMemo(() => {
+    //     if (!analytics?.improvement_trends) return [];
+    //     return analytics.improvement_trends.map((item) => ({
+    //         label: item.month,
+    //         value: item.average_score,
+    //     }));
+    // }, [analytics]);
 
-    const plagiarismTrend = useMemo(() => {
-        if (!analytics?.plagiarism_trends) return [];
-        return analytics.plagiarism_trends.map((item) => ({
-            label: item.month,
-            value: item.avg_similarity,
-        }));
-    }, [analytics]);
+    // const plagiarismTrend = useMemo(() => {
+    //     if (!analytics?.plagiarism_trends) return [];
+    //     return analytics.plagiarism_trends.map((item) => ({
+    //         label: item.month,
+    //         value: item.avg_similarity,
+    //     }));
+    // }, [analytics]);
 
     if (loading) {
         return <div className="text-slate-500">Loading analytics...</div>;
@@ -76,7 +76,7 @@ const TeacherAnalytics = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white border border-slate-200 rounded-2xl p-5">
                     <h2 className="text-lg font-bold text-slate-700 mb-3">Improvement Trend (Average Score)</h2>
                     <TrendSparkline data={scoreTrend} color="#059669" />
@@ -85,7 +85,7 @@ const TeacherAnalytics = () => {
                     <h2 className="text-lg font-bold text-slate-700 mb-3">Plagiarism Trend (Avg Similarity)</h2>
                     <TrendSparkline data={plagiarismTrend} color="#e11d48" />
                 </div>
-            </div>
+            </div> */}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white border border-slate-200 rounded-2xl p-5">
