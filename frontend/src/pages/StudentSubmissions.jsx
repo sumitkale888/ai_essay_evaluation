@@ -83,6 +83,11 @@ const StudentSubmissions = () => {
                         {submissions.map((sub, i) => {
                             const draft = getDraft(sub);
                             const isExpanded = expandedEssayId === sub.essay_id;
+                            const isTeacherReviewed = Boolean(
+                                sub.teacher_reviewed_at ||
+                                sub.teacher_score !== null ||
+                                (sub.teacher_feedback && sub.teacher_feedback.trim() !== '')
+                            );
 
                             return (
                                 <React.Fragment key={sub.essay_id || i}>
@@ -128,10 +133,18 @@ const StudentSubmissions = () => {
                                         <td className="p-5">
                                             <span
                                                 className={`text-sm font-medium italic ${
-                                                    sub.is_plagiarized ? 'text-red-600' : 'text-slate-500'
+                                                    isTeacherReviewed
+                                                        ? 'text-emerald-700'
+                                                        : sub.is_plagiarized
+                                                            ? 'text-red-600'
+                                                            : 'text-slate-500'
                                                 }`}
                                             >
-                                                {sub.is_plagiarized ? 'Needs review' : 'Evaluated by AI'}
+                                                {isTeacherReviewed
+                                                    ? 'Reviewed by teacher'
+                                                    : sub.is_plagiarized
+                                                        ? 'Needs review'
+                                                        : 'Evaluated by AI'}
                                             </span>
                                         </td>
                                     </tr>
